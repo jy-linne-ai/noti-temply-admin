@@ -1,0 +1,48 @@
+{%- from 'partials/partials-3.j2' import render as styling_content with context -%}
+{%- macro render(locals = {}) -%}
+{% call styling_content(locals = dict(title = '回答の変更')) %}
+<td style="padding-top:8px;">
+  <table cellspacing="0" cellpadding="0" border="0" width="100%" role="presentation">
+    <tr>
+      <td bgColor="#F5F5F5" style="padding:0 18px 12px;background-color:#F5F5F5;border-radius:4px;">
+        <table cellspacing="0" cellpadding="0" border="0" width="100%" role="presentation">
+          {% for reply_change in locals.reply_changes %}
+          <tr>
+            <td style="padding-top:10px;">
+              <p style="margin:0;padding:0;font-size:14px;line-height:19.6px;font-weight:700;">・{{
+                reply_change.product_name }}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px 0;">
+              <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                {% for detail in reply_change.details %}
+                <tr>
+                  {% if detail.before is not none and detail.before != '' %}
+                  <td>
+                    <p style="margin:0;padding:0;font-size:14px;font-weight:500;line-height:21px;color:#6E7277;">
+                      {{ detail.before | escape_nl2br }}
+                    </p>
+                  </td>
+                  <td style="padding:0 8px;">
+                    <div style="line-height:1;"><img src="https://images.rentals.link/email/arrow_right.png" alt="から"
+                        width="20" height="20" style="vertical-align: middle;"></div>
+                  </td>
+                  {% endif %}
+                  <td>
+                    <p style="margin:0;padding:0;font-size:14px; line-height:21px;font-weight:500;">
+                      {{ detail.after | escape_nl2br }}
+                    </p>
+                  </td>
+                </tr>
+                {% endfor %}
+              </table>
+            </td>
+          </tr>
+          {% endfor %}
+        </table>
+      </td>
+    </tr>
+  </table>
+</td>
+{% endcall %}{%- endmacro -%}

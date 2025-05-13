@@ -1,0 +1,3 @@
+{%- from 'partials/partials-50.j2' import render as arrangement_mailer_webpush_body with context -%}
+【{{arrangement.type_text}} - {{title_status_text}}】{{ arrangement_mailer_webpush_body(locals = dict(requested_products=
+requested_products, arrangement= arrangement, site= site)) }} <社内>

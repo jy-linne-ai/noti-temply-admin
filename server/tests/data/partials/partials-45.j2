@@ -1,0 +1,28 @@
+{%- from 'partials/partials-3.j2' import render as styling_content with context -%}
+{%- macro render(locals = {}) -%}
+{% call styling_content(locals = dict(title = '商品')) %}
+{% for arrangement_product in locals.arrangement_products %}
+<tr>
+  <td style="padding-top:8px;">
+    <p style="margin:0;padding:0;font-size:14px;line-height:21px;">
+      {{ arrangement_product.product_name}} ({{arrangement_product.without_prefix_product_code}}) - 依頼数:
+      {{arrangement_product.request_quantity + 0}}<br>
+      {% for arrangement_office_product in arrangement_product.arrangement_office_products %}
+      　・{{ arrangement_office_product.rental_sale_office_name }} - 依頼数: {{ arrangement_office_product.request_quantity +
+      0 }} - 回答数: {{ arrangement_office_product.reply_quantity_text }}<br>
+      　　在庫引当(レンタルNo.) {{ arrangement_office_product.rental_no_list_text }}<br>
+      {% endfor %}
+      {% if locals.arrangement.type == 'order_arrangements' and not arrangement.product_has_move %}
+      受注単価: {{ arrangement_product.price + 0}} - {{ arrangement_product.contract_type_text }}<br>
+      代替商品: {{ arrangement_product.substitute | escape_nl2br}}<br>
+      {% endif %}
+      {% if locals.arrangement.type == 'order_arrangements' %}
+      指定事項: {{ arrangement_product.notice | escape_nl2br }}<br>
+      {% endif %}
+      その他留意事項: {{ arrangement_product.memo | escape_nl2br}}<br>
+    </p>
+  </td>
+</tr>
+{% endfor %}
+{% endcall %}
+{%- endmacro -%}

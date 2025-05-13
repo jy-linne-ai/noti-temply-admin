@@ -1,0 +1,36 @@
+{% from 'partials/partials-3.j2' import render as styling_content with context %}
+{% from 'partials/partials-31.j2' import render as or_footer_html with context %}
+{%- macro render(locals = {}) -%}
+<p>{{ locals.site.sale_office.name }}からメッセージを受信しました。</p>
+<p style='color: #f33; font-weight: bold'>※ このメールには返信せず、必ずサイト内のメッセージフォームから返信をお願いいたします。</p>
+{{ or_footer_html(locals = dict(btn_footer_label= locals.btn_footer_label, btn_footer_link= locals.btn_footer_link)) }}
+{% call styling_content(locals = dict(title = "メッセージ")) %}
+<tr>
+  <td style="padding-top:12px;">
+    <p style="margin:0;padding:0;font-size:14px;line-height:21px;">
+      送信元: {{ locals.site.sale_office.name }}<br>
+      現場: {{ locals.site.name_with_label }}
+    </p>
+    <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+      <tr>
+        <td bgColor="#F5F5F5" style="padding:10px 10px 12px;background-color:#F5F5F5;border-radius:4px;">
+          <p style="margin:0;padding:0;font-size:14px;line-height:21px;">
+            {{locals.message.message_text | escape_nl2br}}
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+{% endcall %}
+{% call styling_content(locals = dict(title = "問合せ情報")) %}
+<tr>
+  <td style="padding-top:8px;">
+    <p style="margin:0;padding:0;font-size:14px;line-height:21px;">
+      問合せ番号: {{ locals.message.topic_id }}
+    </p>
+  </td>
+</tr>
+{% endcall %}
+{{ or_footer_html(locals = dict(btn_footer_label= locals.btn_footer_label, btn_footer_link= locals.btn_footer_link))
+}}{%- endmacro -%}

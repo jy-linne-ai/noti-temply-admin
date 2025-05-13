@@ -1,0 +1,15 @@
+{%- from 'partials/partials-3.j2' import render as styling_content with context -%}
+{%- macro render(locals = {}) -%}
+{% call styling_content(locals = dict(title = locals.arrangement_title_text)) %}
+<td style="padding-top:8px;">
+  <p style="margin:0;padding:0;font-size:14px;line-height:21px;">
+    顧客: {{ locals.site.branch_client_name }}<br>
+    現場: {{ locals.site.name_text }}<br>
+    現場住所: {{ locals.site.addr_with_postal_code }}
+    {% if locals.arrangement.type == 'order_arrangements' %}
+    <br>
+    納品日: {{ locals.site.order_delivery_date_text }}
+    {% endif %}
+  </p>
+</td>
+{% endcall %}{%- endmacro -%}

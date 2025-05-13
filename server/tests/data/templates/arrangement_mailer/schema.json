@@ -1,0 +1,137 @@
+{
+  "$defs": {
+    "message": {
+      "properties": {
+        "message_text": {
+          "title": "Message Text",
+          "type": "string"
+        },
+        "topic_id": {
+          "title": "Topic Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_text",
+        "topic_id"
+      ],
+      "title": "message",
+      "type": "object"
+    },
+    "site": {
+      "properties": {
+        "name_with_label": {
+          "title": "Name With Label",
+          "type": "string"
+        },
+        "sale_office": {
+          "$ref": "#/$defs/site.sale_office"
+        }
+      },
+      "required": [
+        "name_with_label",
+        "sale_office"
+      ],
+      "title": "site",
+      "type": "object"
+    },
+    "site.sale_office": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "phone": {
+          "title": "Phone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "phone"
+      ],
+      "title": "site.sale_office",
+      "type": "object"
+    },
+    "tenant": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "settings": {
+          "$ref": "#/$defs/tenant.settings"
+        }
+      },
+      "required": [
+        "name",
+        "settings"
+      ],
+      "title": "tenant",
+      "type": "object"
+    },
+    "tenant.settings": {
+      "properties": {
+        "service": {
+          "$ref": "#/$defs/tenant.settings.service"
+        }
+      },
+      "required": [
+        "service"
+      ],
+      "title": "tenant.settings",
+      "type": "object"
+    },
+    "tenant.settings.service": {
+      "properties": {
+        "logo_url": {
+          "title": "Logo Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "logo_url"
+      ],
+      "title": "tenant.settings.service",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "available_on_sp_logo": {
+      "title": "Available On Sp Logo",
+      "type": "boolean"
+    },
+    "btn_footer_label": {
+      "title": "Btn Footer Label",
+      "type": "string"
+    },
+    "btn_footer_link": {
+      "title": "Btn Footer Link",
+      "type": "string"
+    },
+    "message": {
+      "$ref": "#/$defs/message"
+    },
+    "site": {
+      "$ref": "#/$defs/site"
+    },
+    "start_guide_url": {
+      "title": "Start Guide Url",
+      "type": "string"
+    },
+    "tenant": {
+      "$ref": "#/$defs/tenant"
+    }
+  },
+  "required": [
+    "available_on_sp_logo",
+    "btn_footer_label",
+    "btn_footer_link",
+    "message",
+    "site",
+    "start_guide_url",
+    "tenant"
+  ],
+  "title": "Schema",
+  "type": "object"
+}

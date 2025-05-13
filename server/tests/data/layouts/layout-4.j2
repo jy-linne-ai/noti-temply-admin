@@ -1,0 +1,16 @@
+{{ tenant.name }}をご利用いただきありがとうございます。
+{% block content %}{% endblock %}
+---
+
+{% if site is defined and site.sale_office is defined -%}
+本メールに関してご確認やご相談事項がございましたら担当営業所までご連絡ください。
+
+{{ site.sale_office.name }}
+{{ site.sale_office.phone }}
+
+
+{% endif -%}
+
+このメールは送信専用のアドレスより送信しているため、メールへの返信にはご対応できません。予めご了承ください。
+
+powered by Rentals

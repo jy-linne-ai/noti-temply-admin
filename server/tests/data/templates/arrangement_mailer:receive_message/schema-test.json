@@ -1,0 +1,225 @@
+{
+  "$defs": {
+    "arrangement": {
+      "properties": {
+        "arrangement_info": {
+          "$ref": "#/$defs/arrangement.arrangement_info"
+        },
+        "arrival_date_time_text": {
+          "title": "Arrival Date Time Text",
+          "type": "string"
+        },
+        "date_time_text": {
+          "title": "Date Time Text",
+          "type": "string"
+        },
+        "date_type_text": {
+          "title": "Date Type Text",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "moving_method_text": {
+          "title": "Moving Method Text",
+          "type": "string"
+        },
+        "order_numbers": {
+          "items": {
+            "$ref": "#/$defs/arrangement.order_numbers"
+          },
+          "title": "Order Numbers",
+          "type": "array"
+        },
+        "product_has_move": {
+          "title": "Product Has Move",
+          "type": "boolean"
+        },
+        "product_name": {
+          "title": "Product Name",
+          "type": "string"
+        },
+        "receiving_method_text": {
+          "title": "Receiving Method Text",
+          "type": "string"
+        },
+        "request_type": {
+          "title": "Request Type",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "type_text": {
+          "title": "Type Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "arrangement_info",
+        "date_time_text",
+        "date_type_text",
+        "id",
+        "order_numbers",
+        "product_has_move",
+        "product_name",
+        "request_type",
+        "type",
+        "type_text"
+      ],
+      "title": "arrangement",
+      "type": "object"
+    },
+    "arrangement.arrangement_info": {
+      "properties": {
+        "rental_sale_office_name": {
+          "title": "Rental Sale Office Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rental_sale_office_name"
+      ],
+      "title": "arrangement.arrangement_info",
+      "type": "object"
+    },
+    "arrangement.order_numbers": {
+      "properties": {
+        "or": {
+          "title": "Or",
+          "type": "string"
+        },
+        "roccs": {
+          "title": "Roccs",
+          "type": "string"
+        }
+      },
+      "required": [
+        "or",
+        "roccs"
+      ],
+      "title": "arrangement.order_numbers",
+      "type": "object"
+    },
+    "message": {
+      "properties": {
+        "file_name": {
+          "title": "File Name",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file_name",
+        "text"
+      ],
+      "title": "message",
+      "type": "object"
+    },
+    "site": {
+      "properties": {
+        "addr_with_postal_code": {
+          "title": "Addr With Postal Code",
+          "type": "string"
+        },
+        "branch_client_name": {
+          "title": "Branch Client Name",
+          "type": "string"
+        },
+        "name_text": {
+          "title": "Name Text",
+          "type": "string"
+        },
+        "order_delivery_date_text": {
+          "title": "Order Delivery Date Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "addr_with_postal_code",
+        "branch_client_name",
+        "name_text",
+        "order_delivery_date_text"
+      ],
+      "title": "site",
+      "type": "object"
+    },
+    "user": {
+      "properties": {
+        "default_rental_sale_office": {
+          "$ref": "#/$defs/user.default_rental_sale_office"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "default_rental_sale_office",
+        "name"
+      ],
+      "title": "user",
+      "type": "object"
+    },
+    "user.default_rental_sale_office": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "user.default_rental_sale_office",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "arrangement": {
+      "$ref": "#/$defs/arrangement"
+    },
+    "arrangement_title_text": {
+      "title": "Arrangement Title Text",
+      "type": "string"
+    },
+    "btn_footer_link": {
+      "title": "Btn Footer Link",
+      "type": "string"
+    },
+    "header_text": {
+      "title": "Header Text",
+      "type": "string"
+    },
+    "header_title": {
+      "title": "Header Title",
+      "type": "string"
+    },
+    "message": {
+      "$ref": "#/$defs/message"
+    },
+    "site": {
+      "$ref": "#/$defs/site"
+    },
+    "user": {
+      "$ref": "#/$defs/user"
+    }
+  },
+  "required": [
+    "arrangement",
+    "arrangement_title_text",
+    "btn_footer_link",
+    "header_text",
+    "header_title",
+    "message",
+    "site",
+    "user"
+  ],
+  "title": "Schema",
+  "type": "object"
+}
