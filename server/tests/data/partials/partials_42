@@ -1,0 +1,35 @@
+{#-
+description: フッターのマクロ
+created_at: 2025-05-13
+created_by:
+updated_at: 2025-05-13
+updated_by:
+-#}
+{%- from 'partials/partials_3' import render as styling_content with context -%}
+{%- macro render(locals = {}) -%}
+{% call styling_content(locals = dict(title = '手配依頼内容')) %}
+<tr>
+  <td style="padding-top:8px;">
+    <p style="margin:0;padding:0;font-size:14px;line-height:21px;">
+      手配依頼番号: {{ locals.arrangement.id }}<br>
+      {% if locals.arrangement.request_type == 'requests' %}
+      注文番号:<br>
+      {% for order_number in locals.arrangement.order_numbers %}
+      ・{{ order_number.roccs }}{% if order_number.or is not none %} {{order_number.or}}{% endif %}<br>
+      {% endfor %}
+      {% endif %}
+      依頼元: {{ locals.arrangement.arrangement_info.rental_sale_office_name }}<br>
+      {{ locals.arrangement.date_type_text }}日時: {{ locals.arrangement.date_time_text }}<br>
+      {% if locals.arrangement.type == 'order_arrangements' %}
+      移動方法: {% if locals.arrangement.moving_method_text is defined %}{{ locals.arrangement.moving_method_text }} {%
+      endif %}<br>
+      受取方法: {% if locals.arrangement.receiving_method_text is defined %}{{ locals.arrangement.receiving_method_text }}
+      {% endif %}<br>
+      {% endif %}
+      到着日時: {% if locals.arrangement.arrival_date_time_text is defined %}{{ locals.arrangement.arrival_date_time_text}}
+      {% endif %}
+    </p>
+  </td>
+</tr>
+{% endcall %}
+{%- endmacro -%}

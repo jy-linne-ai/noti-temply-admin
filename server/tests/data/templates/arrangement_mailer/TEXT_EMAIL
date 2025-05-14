@@ -1,0 +1,5 @@
+{% extends 'layouts/layout_4' %}
+{% from 'partials/partials_54' import render as chat_to_or_mailer_common_text with context %}
+{% block content -%}
+{{ chat_to_or_mailer_common_text(locals = dict(site= site, message= message, btn_footer_link= btn_footer_link)) }}
+{% endblock -%}

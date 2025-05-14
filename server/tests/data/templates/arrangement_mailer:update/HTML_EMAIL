@@ -1,0 +1,28 @@
+{%- extends 'layouts/layout_1' -%}
+{%- from 'partials/partials_1' import render as orm_footer_html with context -%}
+{%- from 'partials/partials_2' import render as orm_header_html with context -%}
+{%- from 'partials/partials_42' import render as arrangement_mailer_arrangement_content_html with context -%}
+{%- from 'partials/partials_43' import render as arrangement_mailer_arrangement_site_content_html with context -%}
+{%- from 'partials/partials_44' import render as arrangement_mailer_message_content_html with context -%}
+{%- from 'partials/partials_45' import render as arrangement_mailer_product_content_html with context -%}
+{%- from 'partials/partials_55' import render as arrangement_mailer_update_content_html with context -%}
+{%- set update_params = dict(arrangement= arrangement) -%}
+{%- if(moving_method_change is defined) -%}
+{%- do update_params.update({'moving_method_change': moving_method_change}) -%}
+{%- endif -%}
+{%- if(product_change_destinations is defined) -%}
+{%- do update_params.update({'product_change_destinations': product_change_destinations}) -%}
+{%- endif -%}
+{% block content %}
+{{ orm_header_html(locals = dict(header_title= header_title, header_text= header_text)) }}
+{{ arrangement_mailer_update_content_html(locals = update_params) }}
+{% if not arrangement.product_has_move %}
+{{ arrangement_mailer_arrangement_site_content_html(locals = dict(arrangement= arrangement, arrangement_title_text=
+arrangement_title_text, site= site)) }}
+{% endif %}
+{{ arrangement_mailer_arrangement_content_html(locals = dict(arrangement= arrangement)) }}
+{{ arrangement_mailer_message_content_html(locals = dict(message= message, files= [])) }}
+{{ arrangement_mailer_product_content_html(locals = dict(arrangement= arrangement, arrangement_products=
+arrangement.arrangement_products)) }}
+{{ orm_footer_html(locals = dict(btn_footer_text='依頼内容を確認', btn_footer_link=btn_footer_link)) }}
+{% endblock %}

@@ -1,0 +1,6 @@
+{%- from 'partials/partials_50' import render as arrangement_mailer_webpush_body with context -%}
+{%- set body_params = dict(requested_products= requested_products, arrangement= arrangement) -%}
+{%- if(site is defined) -%}
+{%- do body_params.update({'site': site}) -%}
+{%- endif -%}
+{{ arrangement_mailer_webpush_body(locals = body_params) }}

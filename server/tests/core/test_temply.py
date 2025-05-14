@@ -6,10 +6,11 @@ import json
 import pprint
 import re
 from pathlib import Path
-from typing import Any, Callable, List
+from typing import Any, List
 
 import pytest
-from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined, TemplateNotFound
+import pytest_asyncio
+from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined
 from jinja2schema.model import Dictionary  # type: ignore
 from jsonschema import validate
 from jsonschema.validators import RefResolver
@@ -23,6 +24,7 @@ from app.core.temply import (
     to_json_schema,
 )
 from app.core.temply.mergers import merge
+from app.core.temply.metadata.template_parser import TemplateParser
 from app.core.temply.utils import generate_object
 
 
@@ -65,6 +67,7 @@ def get_base_path() -> Path:
 #             raise
 
 
+@pytest.mark.asyncio
 def template_names() -> List[str]:
     """템플릿 이름 추출"""
     base_path = get_base_path()
@@ -78,6 +81,7 @@ def template_names() -> List[str]:
     return match_template_files
 
 
+@pytest.mark.asyncio
 def _get_template_item_names(root_path: Path, template_dir_name: str) -> List[str]:
     """템플릿 이름 추출"""
     match_template_files = []
@@ -85,7 +89,7 @@ def _get_template_item_names(root_path: Path, template_dir_name: str) -> List[st
     print(root_path)
     print(template_path)
     for file_path in template_path.iterdir():
-        if file_path.is_dir() or not file_path.name.endswith(".j2"):
+        if file_path.is_dir() or file_path.name.endswith(".json") or file_path.name.startswith("."):
             continue
         match_template_files.append(f"templates/{template_dir_name}/{file_path.name}")
     return match_template_files
@@ -110,6 +114,7 @@ def v_env():
     return _env
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("template_name", template_names())
 # pylint: disable=redefined-outer-name
 def test_schema_equal(v_env, template_name):
@@ -218,6 +223,7 @@ def test_schema_equal(v_env, template_name):
     assert actual_schema == expected_schema_copy
 
 
+@pytest.mark.asyncio
 def test_normalize_ref():
     """참조 문자열 정규화 테스트"""
     test_cases = [
@@ -231,6 +237,7 @@ def test_normalize_ref():
         assert normalize_ref(input_ref) == expected
 
 
+@pytest.mark.asyncio
 def test_remove_namespace():
     """네임스페이스 제거 테스트"""
     test_cases = [
@@ -243,6 +250,7 @@ def test_remove_namespace():
         assert remove_namespace(input_ref) == expected
 
 
+@pytest.mark.asyncio
 def test_get_mode_title():
     """모드 제목 테스트"""
 
@@ -251,6 +259,7 @@ def test_get_mode_title():
     assert get_mode_title("other") == "Output"  # 기본값
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("template_name", template_names())
 # pylint: disable=redefined-outer-name
 def test_schema_validate_with_random_data(template_name):
@@ -267,6 +276,7 @@ def test_schema_validate_with_random_data(template_name):
     validate(instance=schema_data, schema=schema, resolver=resolver)
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("template_name", template_names())
 def test_parse_content(v_env, template_name):
     """템플릿 파싱 테스트"""

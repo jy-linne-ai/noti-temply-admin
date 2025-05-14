@@ -1,0 +1,3 @@
+{%- from 'partials/partials_50' import render as arrangement_mailer_webpush_body with context -%}
+{{ arrangement_mailer_webpush_body(locals = dict(requested_products= requested_products, arrangement= arrangement, site=
+site)) }}

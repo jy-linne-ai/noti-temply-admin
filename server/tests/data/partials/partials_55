@@ -1,0 +1,162 @@
+{#- 
+description: フッターのマクロ
+created_at: 2025-05-13
+created_by: 
+updated_at: 2025-05-13
+updated_by: 
+-#}
+{%- from 'partials/partials_3' import render as styling_content with context -%}
+{%- macro render(locals = {}) -%}
+{% call styling_content(locals = dict(title = '変更内容')) %}
+<tr>
+  <td style="padding-top:8px;">
+    <table cellspacing="0" cellpadding="0" border="0" width="100%" role="presentation">
+      <tr>
+        <td bgColor="#F5F5F5" style="padding:0 18px 12px;background-color:#F5F5F5;border-radius:4px;">
+          <table cellspacing="0" cellpadding="0" border="0" width="100%" role="presentation">
+            {% if locals.moving_method_change is defined %}
+            {% for detail in locals.moving_method_change.details %}
+            <tr>
+              <td style="padding-top:10px;">
+                <p style="margin:0;padding:0;font-size:14px;line-height:19.6px;font-weight:700;">・{{ detail.text }}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td>
+                      <p style="margin:0;padding:0;font-size:14px;font-weight:500;line-height:21px;color:#6E7277;">{{
+                        detail.before | escape_nl2br }}</p>
+                    </td>
+                    <td style="padding:0 8px;">
+                      <div style="line-height:1;"><img src="https://images.rentals.link/email/arrow_right.png" alt="から"
+                          width="20" height="20" style="vertical-align: middle;"></div>
+                    </td>
+                    <td>
+                      <p style="margin:0;padding:0;font-size:14px; line-height:21px;font-weight:500;">{{ detail.after |
+                        escape_nl2br }}</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            {% for arrangement_product in locals.arrangement.arrangement_products %}
+            {% if arrangement_product.product_change is defined or arrangement_product.product_info_change_details is
+            defined %}
+            <tr>
+              <td style="padding-top:10px;">
+                <p style="margin:0;padding:0;font-size:14px;line-height:19.6px;font-weight:700;">・{{
+                  arrangement_product.product_name }}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                  {% if arrangement_product.product_change is defined %}
+                  {% set product_change = arrangement_product.product_change %}
+                  <tr>
+                    <td>
+                      <p style="margin:0;padding:0;font-size:14px;font-weight:500;line-height:21px;color:#6E7277;">依頼数:
+                        {{product_change.before}}</p>
+                    </td>
+                    <td style="padding:0 8px;">
+                      <div style="line-height:1;"><img src="https://images.rentals.link/email/arrow_right.png" alt="から"
+                          width="20" height="20" style="vertical-align: middle;"></div>
+                    </td>
+                    <td>
+                      <p style="margin:0;padding:0;font-size:14px; line-height:21px;font-weight:500;">依頼数:
+                        {{product_change.after}}</p>
+                    </td>
+                  </tr>
+                  {% endif %}
+                  {% if arrangement_product.product_info_change_details is defined %}
+                  {% for info_detail in arrangement_product.product_info_change_details %}
+                  <tr>
+                    <td>
+                      <p style="margin:0;padding:0;font-size:14px;font-weight:500;line-height:21px;color:#6E7277;">
+                        {{arrangement_product.product_name}} {{info_detail.text}}: {{ info_detail.before |
+                        escape_nl2br}}
+                      </p>
+                    </td>
+                    <td style="padding:0 8px;">
+                      <div style="line-height:1;"><img src="https://images.rentals.link/email/arrow_right.png" alt="から"
+                          width="20" height="20" style="vertical-align: middle;"></div>
+                    </td>
+                    <td>
+                      <p style="margin:0;padding:0;font-size:14px; line-height:21px;font-weight:500;">
+                        {{arrangement_product.product_name}} {{info_detail.text}}: {{ info_detail.after | escape_nl2br}}
+                      </p>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                  {% endif %}
+                </table>
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            {% if locals.product_change_destinations is defined %}
+            {% for destination in locals.product_change_destinations %}
+            {% if destination.header is defined %}
+            <tr>
+              <td style="padding-top:20px;">
+                <p style="margin:0;padding:0;font-size:14px;line-height:19.6px;font-weight:700;">依頼先:
+                  {{destination.header}}</p>
+              </td>
+            </tr>
+            {% endif %}
+
+            {% for detail in destination.details %}
+            {% if detail.product_name is defined %}
+            <tr>
+              <td style="padding-top:10px;">
+                <p style="margin:0;padding:0;font-size:14px;line-height:19.6px;font-weight:700;">・{{ detail.product_name
+                  }}</p>
+              </td>
+            </tr>
+            {% endif %}
+            <tr>
+              <td style="padding:8px 12px 0;">
+                <table border="0" cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td>
+                      <p style="margin:0;padding:0;font-size:14px;font-weight:500;line-height:21px;color:#6E7277;">
+                        {% if detail.text == '在庫引当' %}
+                        {{ detail.text }}<br>
+                        {{ detail.before | escape_nl2br}}
+                        {% else %}
+                        {{ detail.text }}: {{ detail.before }}
+                        {% endif %}
+                      </p>
+                    </td>
+                    <td style="padding:0 8px;">
+                      <div style="line-height:1;"><img src="https://images.rentals.link/email/arrow_right.png" alt="から"
+                          width="20" height="20" style="vertical-align: middle;"></div>
+                    </td>
+                    <td>
+                      <p style="margin:0;padding:0;font-size:14px; line-height:21px;font-weight:500;">
+                        {% if detail.text == '在庫引当' %}
+                        {{ detail.text }}<br>
+                        {{ detail.after | escape_nl2br}}
+                        {% else %}
+                        {{ detail.text }}: {{ detail.after }}
+                        {% endif %}
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            {% endfor %}
+            {% endfor %}
+            {% endif %}
+          </table>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>
+{% endcall %}{%- endmacro -%}

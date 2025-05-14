@@ -1,0 +1,33 @@
+{#- 
+description: フッターのマクロ
+created_at: 2025-05-13
+created_by: 
+updated_at: 2025-05-13
+updated_by: 
+-#}
+{%- macro render(locals = {}) -%}
+<table cellspacing="0" cellpadding="0" border="0" width="100%" role="presentation">
+  <tr>
+    <td style="padding-top:32px;padding-bottom:24px;text-align:center;">
+      <table align="center" cellspacing="0" cellpadding="0" border="0" width="100%" role="presentation"
+        style="max-width:320px;margin: 0 auto;">
+        <tr>
+          <td bgcolor="#074B9D"
+            style="background:#074B9D;border-radius:4px;text-align:center;font-size:16px;line-height:24px;font-weight:700;">
+            {% if locals.btn_footer_link is defined %}
+            <!--[if mso]>
+                <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{{ locals.btn_footer_link }}" style="height:48px;v-text-anchor:middle;width:320px;margin:0;padding:0;" arcsize="9%" stroke="f" fillcolor="#074B9D">
+                  <w:anchorlock/>
+                  <center style="color:#ffffff;font-size:16px;font-weight:bold;">{{ locals.btn_footer_label }}</center>
+                </v:roundrect>
+              <![endif]--><a href="{{ locals.btn_footer_link }}"
+              style="background-color:#074B9D;border-radius:4px;color:#ffffff;display:inline-block;font-size:16px;font-weight:bold;line-height:48px;text-align:center;text-decoration:none;width:100%;max-width:320px;-webkit-text-size-adjust:none;mso-hide:all;">{{
+              locals.btn_footer_label }}</a>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+{%- endmacro -%}

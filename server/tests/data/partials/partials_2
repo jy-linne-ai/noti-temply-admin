@@ -1,0 +1,27 @@
+{#- 
+description: フッターのマクロ
+created_at: 2025-05-13
+created_by: 
+updated_at: 2025-05-13
+updated_by: 
+-#}
+{%- macro render(locals = {}) -%}
+<table cellspacing="0" cellpadding="0" border="0" width="100%" role="presentation">
+  <tr>
+    <td>
+      <h2 style="margin:0;padding:0;font-size:20px;line-height:30px;font-weight:700;">{{ locals.header_title }}</h2>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:12px 0 15px">
+      <p style="margin:0;padding:0;font-size:14px;line-height:28px;">{{ locals.header_text | escape_nl2br }}</p>
+    </td>
+  </tr>
+  <tr>
+    <td bgcolor="#EEEEEE" height="1" style="height:1px;background-color:#EEEEEE;"></td>
+  </tr>
+  <tr>
+    <td height="12" style="height:12px;"></td>
+  </tr>
+</table>
+{%- endmacro -%}

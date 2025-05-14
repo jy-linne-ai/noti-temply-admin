@@ -1,0 +1,38 @@
+{%- extends 'layouts/layout_1' -%}
+{%- from 'partials/partials_1' import render as orm_footer_html with context -%}
+{%- from 'partials/partials_2' import render as orm_header_html with context -%}
+{%- from 'partials/partials_3' import render as styling_content with context -%}
+{%- from 'partials/partials_42' import render as arrangement_mailer_arrangement_content_html with context -%}
+{%- from 'partials/partials_43' import render as arrangement_mailer_arrangement_site_content_html with context -%}
+{%- from 'partials/partials_44' import render as arrangement_mailer_message_content_html with context -%}
+{%- from 'partials/partials_45' import render as arrangement_mailer_product_content_html with context -%}
+{%- from 'partials/partials_46' import render as arrangement_mailer_reply_content_html with context -%}
+{% block content %}
+{{ orm_header_html(locals = dict(header_title= header_title, header_text= header_text)) }}
+{% call styling_content(locals = dict(title = '送信元')) %}
+<tr>
+  <td style="padding-top:8px;">
+    <p style="margin:0;padding:0;font-size:14px;line-height:21px;">{{user.default_rental_sale_office.name}}
+      {{user.name}}</p>
+  </td>
+</tr>
+{% endcall %}
+{% if message.text != '' %}
+{{ arrangement_mailer_message_content_html(locals = dict(message= message.text, files= [])) }}
+{% endif %}
+{% if message.file_name != '' %}
+{% call styling_content(locals = dict(title = 'ファイル')) %}
+<tr>
+  <td style="padding-top:8px;">
+    <p style="margin:0;padding:0;font-size:14px;line-height:21px;">{{message.file_name}}</p>
+  </td>
+</tr>
+{% endcall %}
+{% endif %}
+{% if not arrangement.product_has_move %}
+{{ arrangement_mailer_arrangement_site_content_html(locals = dict(arrangement= arrangement, arrangement_title_text=
+arrangement_title_text, site= site)) }}
+{% endif %}
+{{ arrangement_mailer_arrangement_content_html(locals = dict(arrangement= arrangement)) }}
+{{ orm_footer_html(locals = dict(btn_footer_text='メッセージを確認', btn_footer_link=btn_footer_link)) }}
+{% endblock %}

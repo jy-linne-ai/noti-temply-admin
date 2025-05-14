@@ -1,0 +1,21 @@
+{#- 
+description: フッターのマクロ
+created_at: 2025-05-13
+created_by: 
+updated_at: 2025-05-13
+updated_by: 
+-#}
+{%- macro render(locals = {}) -%}
+{% set other_products_count = (locals.requested_products | length) - 1 -%}
+{{ locals.arrangement.type_and_date_text }} |
+{%- if (locals.requested_products | length) > 0 -%}
+{{ ' ' + (locals.requested_products|first).without_prefix_product_code }} 依頼数: {{
+((locals.requested_products|first).request_quantity + 0) ~ ' ' }}
+{%- if other_products_count > 0 -%} - 他{{other_products_count}}件 {% endif -%} |
+{%- endif -%}
+{{- ' ' + locals.arrangement.arrangement_info.rental_sale_office_name }}
+{%- if locals.site is defined -%}
+- {{locals.site.branch_client_name}} {{locals.site.name}} {%- if locals.site.label is defined
+-%}({{locals.site.label}}){%- endif -%}
+{%- endif -%}
+{%- endmacro -%}

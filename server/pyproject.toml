@@ -33,6 +33,7 @@ types-aiofiles = "^23.2.0"
 types-jsonschema = "^4.17.0"
 jsonschema = "^4.17.3"
 pylint = "^3.3.7"
+pytest-asyncio = "^0.26.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -78,3 +79,5 @@ warn_unreachable = true
 [[tool.mypy.overrides]]
 module = "jinja2schema.*"
 ignore_missing_imports = true
+ignore_errors = true
+exclude = ["jinja2schema.*"]

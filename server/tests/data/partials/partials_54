@@ -1,0 +1,23 @@
+{#- 
+description: フッターのマクロ
+created_at: 2025-05-13
+created_by: 
+updated_at: 2025-05-13
+updated_by: 
+-#}
+{%- macro render(locals = {}) -%}
+{{ locals.site.sale_office.name }}からメッセージを受信しました。
+
+※ このメールには返信せず、必ずサイト内のメッセージフォームから返信をお願いいたします。
+以下からメッセージに返信ができます。
+{{ locals.btn_footer_link }}
+
+■ メッセージ
+送信元: {{ locals.site.sale_office.name }}
+現場: {{ locals.site.name_with_label }}
+
+{{ locals.message.message_text }}
+
+■ 問合せ情報
+問合せ番号: {{ locals.message.topic_id }}
+{%- endmacro -%}
