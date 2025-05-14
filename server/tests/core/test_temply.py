@@ -9,23 +9,16 @@ from pathlib import Path
 from typing import Any, List
 
 import pytest
-import pytest_asyncio
 from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined
 from jinja2schema.model import Dictionary  # type: ignore
 from jsonschema import validate
 from jsonschema.validators import RefResolver
 from markupsafe import escape
 
-from app.core.temply import (
-    get_mode_title,
-    infer_from_ast,
-    normalize_ref,
-    remove_namespace,
-    to_json_schema,
-)
-from app.core.temply.mergers import merge
-from app.core.temply.metadata.template_parser import TemplateParser
-from app.core.temply.utils import generate_object
+from app.core.temply.schema import get_mode_title, infer_from_ast, to_json_schema
+from app.core.temply.schema.mergers import merge
+from app.core.temply.schema.schema_parser import normalize_ref, remove_namespace
+from app.core.temply.schema.utils import generate_object
 
 
 def environment_options() -> tuple[dict[str, Any], dict[str, Any]]:
@@ -221,33 +214,6 @@ def test_schema_equal(v_env, template_name):
         )
         print("\n".join(diff))
     assert actual_schema == expected_schema_copy
-
-
-@pytest.mark.asyncio
-def test_normalize_ref():
-    """참조 문자열 정규화 테스트"""
-    test_cases = [
-        ("app.utils.temply.schema.tenant.settings", "tenant.settings"),
-        ("app.utils.temply.schema.user:123", "user"),
-        ("app.utils.temply.schema.order.items:456", "order.items"),
-        ("app.utils.temply.schema", "schema"),
-    ]
-
-    for input_ref, expected in test_cases:
-        assert normalize_ref(input_ref) == expected
-
-
-@pytest.mark.asyncio
-def test_remove_namespace():
-    """네임스페이스 제거 테스트"""
-    test_cases = [
-        ("app.utils.temply.schema.tenant.settings", "tenant.settings"),
-        ("app.utils.temply.schema", "schema"),
-        ("app.utils.temply.schema.other.tenant.settings", "other.tenant.settings"),
-    ]
-
-    for input_ref, expected in test_cases:
-        assert remove_namespace(input_ref) == expected
 
 
 @pytest.mark.asyncio

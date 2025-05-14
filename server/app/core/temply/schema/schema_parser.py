@@ -1,9 +1,75 @@
+import re
 from typing import Any, Type, Union
 
 from jinja2schema.model import Boolean, Dictionary, List, Number, Scalar, Tuple, Variable
 from pydantic import BaseModel, Field, create_model
 
 from .model import AdditionalProperties, AnyOf, Integer
+
+
+def remove_namespace(ref: str) -> str:
+    """Dynamically removes namespace from schema reference.
+
+    Args:
+        ref: The reference string containing namespace.
+
+    Returns:
+        str: The reference string with namespace removed.
+    """
+    # print(f"[remove_namespace] input: {ref}")
+    # Return only the part after .schema.
+    if __name__ in ref:
+        result = ref.split(__name__, 1)[1].lstrip(".")
+        # print(f"[remove_namespace] {__name__} found, result: {result}")
+        return result
+
+    # print(f"[remove_namespace] no change, result: {ref}")
+    return ref
+
+
+def normalize_ref(ref: str) -> str:
+    """Normalizes reference string by removing IDs and namespaces.
+
+    Args:
+        ref: The reference string to normalize.
+
+    Returns:
+        str: The normalized reference string.
+
+    Examples:
+        >>> normalize_ref("app.utils.temply.schema.user:123")
+        'user'
+        >>> normalize_ref("app.utils.temply.schema.order.items:456")
+        'order.items'
+    """
+    # print(f"[normalize_ref] input: {ref}")
+    # Remove ID
+    components = re.split(r"([\][,])", ref)
+    components = [x.split(":")[0] for x in components]
+    ref_no_id = "".join(components)
+    # print(f"[normalize_ref] after id remove: {ref_no_id}")
+    # Remove namespace
+    result = remove_namespace(ref_no_id)
+    # print(f"[normalize_ref] after remove_namespace: {result}")
+    return result
+
+
+def get_mode_title(mode: str) -> str:
+    """Returns title based on mode.
+
+    Args:
+        mode: The mode string ('input' or 'output').
+
+    Returns:
+        str: The title corresponding to the mode.
+
+    Examples:
+        >>> get_mode_title("input")
+        'Input'
+        >>> get_mode_title("output")
+        'Output'
+    """
+    return "Input" if mode == "input" else "Output"
 
 
 def variable_to_type(variable: Variable, namespaces: list[str]) -> object:
