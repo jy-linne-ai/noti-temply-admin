@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from app.core.temply.metadata.meta_model import JST, PartialMetaData
+from app.core.temply.metadata.meta_model import JST
 from app.core.temply.metadata.partial_parser import PartialParser
 
 

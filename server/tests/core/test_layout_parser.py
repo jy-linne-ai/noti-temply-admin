@@ -1,6 +1,5 @@
 """레이아웃 파서 테스트"""
 
-import asyncio
 from pathlib import Path
 
 import pytest

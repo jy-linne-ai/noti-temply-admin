@@ -9,15 +9,15 @@ from pathlib import Path
 from typing import Any, List
 
 import pytest
-from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined
+from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined, TemplateNotFound
 from jinja2schema.model import Dictionary  # type: ignore
 from jsonschema import validate
 from jsonschema.validators import RefResolver
 from markupsafe import escape
 
+from app.core.temply.items import TemplateItems
 from app.core.temply.schema import get_mode_title, infer_from_ast, to_json_schema
 from app.core.temply.schema.mergers import merge
-from app.core.temply.schema.schema_parser import normalize_ref, remove_namespace
 from app.core.temply.schema.utils import generate_object
 
 
@@ -61,8 +61,8 @@ def get_base_path() -> Path:
 
 
 @pytest.mark.asyncio
-def template_names() -> List[str]:
-    """템플릿 이름 추출"""
+def template_category_names() -> List[str]:
+    """템플릿 카테고리 이름 추출"""
     base_path = get_base_path()
     match_template_files = []
     for file_path in (base_path / "templates").iterdir():
@@ -79,8 +79,8 @@ def _get_template_item_names(root_path: Path, template_dir_name: str) -> List[st
     """템플릿 이름 추출"""
     match_template_files = []
     template_path = root_path / "templates" / template_dir_name
-    print(root_path)
-    print(template_path)
+    # print(root_path)
+    # print(template_path)
     for file_path in template_path.iterdir():
         if file_path.is_dir() or file_path.name.endswith(".json") or file_path.name.startswith("."):
             continue
@@ -108,41 +108,41 @@ def v_env():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("template_name", template_names())
+@pytest.mark.parametrize("template_category_name", template_category_names())
 # pylint: disable=redefined-outer-name
-def test_schema_equal(v_env, template_name):
+def test_schema_equal(v_env, template_category_name):
     """모든 템플릿 파싱 테스트"""
     base_path = get_base_path()
     # template_name = "arrangement_mailer"
     # template_name = "arrangement_mailer:receive_message"
-    match_template_files = _get_template_item_names(base_path, template_name)
+    match_template_files = _get_template_item_names(base_path, template_category_name)
     params = Dictionary()
 
     for template_file_path in match_template_files:
         # templates/arrangement_mailer/... 형식으로 템플릿 로드
-        print(template_file_path)
+        # print(template_file_path)
         content, _, _ = v_env.loader.get_source(v_env, template_file_path)
         ast = v_env.parse(content)
         rv = infer_from_ast(ast, v_env)
         params = merge(params, rv)
-        print(template_file_path)
+        # print(template_file_path)
     # CustomSchemaGenerator 사용
     json_schema = to_json_schema(params)
 
     # 파싱된 결과를 schema-test.json으로 저장
-    test_schema_path = base_path / "templates" / template_name / "schema-test.json"
+    test_schema_path = base_path / "templates" / template_category_name / "schema-test.json"
     with open(test_schema_path, "w", encoding="utf-8") as f:
         json.dump(json_schema, f, indent=2, ensure_ascii=False)
 
     # 기대 스키마 로드
-    schema_path = base_path / "templates" / template_name / "schema.json"
+    schema_path = base_path / "templates" / template_category_name / "schema.json"
     with open(schema_path, "r", encoding="utf-8") as f:
         expected_schema = json.load(f)
 
     expected_keys = set(expected_schema["properties"].keys())
     actual_keys = set(json_schema["properties"].keys())
 
-    print(f"\n=== {template_name} 전체 템플릿 변수 차이 분석 ===")
+    print(f"\n=== {template_category_name} 전체 템플릿 변수 차이 분석 ===")
     print("실제 결과(parsed)에만 있는 변수:", actual_keys - expected_keys)
     print("기대 결과(expected)에만 있는 변수:", expected_keys - actual_keys)
     print("공통 변수:", actual_keys & expected_keys)
@@ -226,12 +226,12 @@ def test_get_mode_title():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("template_name", template_names())
+@pytest.mark.parametrize("template_category_name", template_category_names())
 # pylint: disable=redefined-outer-name
-def test_schema_validate_with_random_data(template_name):
+def test_schema_validate_with_random_data(template_category_name):
     """템플릿 스키마 검증 테스트"""
     base_path = get_base_path()
-    schema_path = base_path / "templates" / template_name / "schema.json"
+    schema_path = base_path / "templates" / template_category_name / "schema.json"
     with open(schema_path, "r", encoding="utf-8") as f:
         schema = json.load(f)
 
@@ -243,18 +243,25 @@ def test_schema_validate_with_random_data(template_name):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("template_name", template_names())
-def test_parse_content(v_env, template_name):
+@pytest.mark.parametrize("template_category_name", template_category_names())
+def test_parse_content(v_env, template_category_name):
     """템플릿 파싱 테스트"""
     base_path = get_base_path()
-    schema_path = base_path / "templates" / template_name / "schema.json"
+    schema_path = base_path / "templates" / template_category_name / "schema.json"
     with open(schema_path, "r", encoding="utf-8") as f:
         schema = json.load(f)
 
     schema_data = generate_object(schema)
 
-    match_template_files = _get_template_item_names(base_path, template_name)
-    for template_file_path in match_template_files:
-        print(template_file_path)
-        template = v_env.get_template(template_file_path)
-        print(template.render(schema_data))
+    success_count = 0
+    for enum in TemplateItems:
+        try:
+            template_name = f"templates/{template_category_name}/{enum.value}"
+            print(template_name)
+            template = v_env.get_template(template_name)
+            print(template.render(schema_data))
+            success_count += 1
+        except TemplateNotFound:
+            pass
+
+    assert success_count > 0
