@@ -4,60 +4,25 @@ import copy
 import difflib
 import json
 import pprint
-import re
 from pathlib import Path
-from typing import Any, List
+from typing import List
 
 import pytest
-from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined, TemplateNotFound
+from jinja2 import TemplateNotFound
 from jinja2schema.model import Dictionary  # type: ignore
 from jsonschema import validate
 from jsonschema.validators import RefResolver
-from markupsafe import escape
 
-from app.core.temply.items import TemplateItems
-from app.core.temply.schema import get_mode_title, infer_from_ast, to_json_schema
 from app.core.temply.schema.mergers import merge
+from app.core.temply.schema.parser import get_mode_title
 from app.core.temply.schema.utils import generate_object
-
-
-def environment_options() -> tuple[dict[str, Any], dict[str, Any]]:
-    """테스트 환경 설정"""
-
-    def escape_nl2br(value: str) -> str:
-        return "<br>\n".join(escape(line) for line in re.split(r"\r?\n", value))
-
-    return {
-        "undefined": StrictUndefined,
-        "extensions": ["jinja2.ext.loopcontrols", "jinja2.ext.do"],
-    }, {
-        "escape_nl2br": escape_nl2br,
-        "cache_size": 100,
-    }
+from app.core.temply.temply_env import TemplateItems, infer_from_ast, to_json_schema
 
 
 def get_base_path() -> Path:
     """테스트 데이터 경로"""
     base = Path(__file__).parent.parent / "data"
     return base
-
-
-# class CustomPreFixLoader(PrefixLoader):
-#     """템플릿 로더 커스텀"""
-
-#     def get_source(
-#         self, environment, template
-#     ) -> tuple[str, str | None, Callable[[], bool] | None]:
-#         """템플릿 로더 커스텀"""
-#         try:
-#             if not template.endswith(".j2"):
-#                 return super().get_source(environment, f"{template}.j2")
-#             else:
-#                 return super().get_source(environment, template)
-#         except TemplateNotFound:
-#             if not template.endswith(".j2"):
-#                 return super().get_source(environment, template)
-#             raise
 
 
 @pytest.mark.asyncio
@@ -88,29 +53,10 @@ def _get_template_item_names(root_path: Path, template_dir_name: str) -> List[st
     return match_template_files
 
 
-@pytest.fixture
-def v_env():
-    """테스트 환경 설정"""
-    kwargs, filters = environment_options()
-    base_path = get_base_path()
-    _env = Environment(
-        loader=PrefixLoader(
-            {
-                "templates": FileSystemLoader(str(base_path / "templates")),
-                "layouts": FileSystemLoader(str(base_path / "layouts")),
-                "partials": FileSystemLoader(str(base_path / "partials")),
-            }
-        ),
-        **kwargs,
-    )
-    _env.filters.update(filters)
-    return _env
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("template_category_name", template_category_names())
 # pylint: disable=redefined-outer-name
-def test_schema_equal(v_env, template_category_name):
+def test_schema_equal(data_env, template_category_name):
     """모든 템플릿 파싱 테스트"""
     base_path = get_base_path()
     # template_name = "arrangement_mailer"
@@ -121,9 +67,8 @@ def test_schema_equal(v_env, template_category_name):
     for template_file_path in match_template_files:
         # templates/arrangement_mailer/... 형식으로 템플릿 로드
         # print(template_file_path)
-        content, _, _ = v_env.loader.get_source(v_env, template_file_path)
-        ast = v_env.parse(content)
-        rv = infer_from_ast(ast, v_env)
+        ast = data_env.source_parse(template_file_path)
+        rv = infer_from_ast(ast, data_env.env)
         params = merge(params, rv)
         # print(template_file_path)
     # CustomSchemaGenerator 사용
@@ -244,7 +189,7 @@ def test_schema_validate_with_random_data(template_category_name):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("template_category_name", template_category_names())
-def test_parse_content(v_env, template_category_name):
+def test_parse_content(data_env, template_category_name):
     """템플릿 파싱 테스트"""
     base_path = get_base_path()
     schema_path = base_path / "templates" / template_category_name / "schema.json"
@@ -258,7 +203,7 @@ def test_parse_content(v_env, template_category_name):
         try:
             template_name = f"templates/{template_category_name}/{enum.value}"
             print(template_name)
-            template = v_env.get_template(template_name)
+            template = data_env.get_template(template_name)
             print(template.render(schema_data))
             success_count += 1
         except TemplateNotFound:

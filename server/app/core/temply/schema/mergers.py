@@ -13,7 +13,7 @@ from jinja2schema.model import Dictionary, List, Scalar, Tuple, Unknown, Variabl
 from pydantic import BaseModel, create_model
 
 from .model import AdditionalProperties, AnyOf
-from .schema_parser import variable_to_type
+from .parser import variable_to_type
 
 
 def merge(

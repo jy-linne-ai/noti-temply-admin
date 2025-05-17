@@ -4,30 +4,26 @@ This module provides functionality to parse Jinja2 partials and build a dependen
 """
 
 import asyncio
-from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import List, Optional, Set
 
-import aiofiles
-from jinja2 import Environment, FileSystemLoader, nodes
+from jinja2 import nodes
 
 from app.core.temply.metadata.meta_model import PartialMetaData
 from app.core.temply.metadata.meta_parser import parse_meta_from_content
+from app.core.temply.temply_env import TemplyEnv
 
 
 class PartialParser:
     """Parser for Jinja2 partials that builds a dependency tree."""
 
-    def __init__(self, partials_dir: str | Path):
+    def __init__(self, temply_env: TemplyEnv):
         """Initialize the parser.
 
         Args:
             partials_dir: Directory containing partial templates
         """
-        self._partials_dir = Path(partials_dir)
-        self.env = Environment(
-            loader=FileSystemLoader(str(self._partials_dir)), extensions=["jinja2.ext.do"]
-        )
-        self.nodes: Dict[str, PartialMetaData] = {}
+        self.env = temply_env
+        self.nodes: dict[str, PartialMetaData] = {}
         self._initialized = False
         self._init_task = asyncio.create_task(self._initialize())
 
@@ -41,7 +37,7 @@ class PartialParser:
         if not self._initialized:
             await self._init_task
 
-    async def _parse_partial(self, partial_file: Path) -> PartialMetaData:
+    async def _parse_partial(self, partial_name: str) -> PartialMetaData:
         """Parse a partial template.
 
         Args:
@@ -50,11 +46,10 @@ class PartialParser:
         Returns:
             PartialMetaData: Parsed partial metadata
         """
-        async with aiofiles.open(partial_file, mode="r", encoding="utf-8") as f:
-            content = await f.read()
+        content, _, _ = self.env.get_source_partial(partial_name)
         meta = parse_meta_from_content(content)
         return PartialMetaData(
-            name=partial_file.name,
+            name=partial_name,
             content=content,
             description=meta.description,
             created_at=meta.created_at,
@@ -70,10 +65,8 @@ class PartialParser:
             List[PartialMetaData]: List of partial metadata
         """
         partials = []
-        for partial_file in self._partials_dir.iterdir():
-            if not partial_file.is_file() or partial_file.name.startswith("."):
-                continue
-            partials.append(await self._parse_partial(partial_file))
+        for partial_name in self.env.get_partial_names():
+            partials.append(await self._parse_partial(partial_name))
         return partials
 
     async def _extract_dependencies(self, content: str) -> Set[str]:
@@ -90,11 +83,11 @@ class PartialParser:
         for node in ast.body:
             if isinstance(node, nodes.Import):
                 template_name = node.template.as_const()
-                if template_name.startswith("partials/"):
+                if template_name.startswith(f"{self.env.partials_dir_name}/"):
                     dependencies.add(template_name.split("/")[-1])
             elif isinstance(node, nodes.FromImport):
                 template_name = node.template.as_const()
-                if template_name.startswith("partials/"):
+                if template_name.startswith(f"{self.env.partials_dir_name}/"):
                     dependencies.add(template_name.split("/")[-1])
         return dependencies
 

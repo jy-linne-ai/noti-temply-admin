@@ -4,30 +4,24 @@ This module provides functionality to parse Jinja2 layouts.
 """
 
 import asyncio
-from pathlib import Path
-from typing import Dict, List, Optional, Set
-
-import aiofiles
-from jinja2 import Environment, FileSystemLoader, nodes
+from typing import List, Optional, Set
 
 from app.core.temply.metadata.meta_model import LayoutMetaData
 from app.core.temply.metadata.meta_parser import parse_meta_from_content
+from app.core.temply.temply_env import TemplyEnv
 
 
 class LayoutParser:
     """Parser for Jinja2 layouts."""
 
-    def __init__(self, layouts_dir: str | Path):
+    def __init__(self, temply_env: TemplyEnv):
         """Initialize the parser.
 
         Args:
             layouts_dir: Directory containing layout templates
         """
-        self._layouts_dir = Path(layouts_dir)
-        self.env = Environment(
-            loader=FileSystemLoader(str(self._layouts_dir)), extensions=["jinja2.ext.do"]
-        )
-        self.nodes: Dict[str, LayoutMetaData] = {}
+        self.env = temply_env
+        self.nodes: dict[str, LayoutMetaData] = {}
         self._initialized = False
         self._init_task = asyncio.create_task(self._initialize())
 
@@ -41,7 +35,7 @@ class LayoutParser:
         if not self._initialized:
             await self._init_task
 
-    async def _parse_layout(self, layout_file: Path) -> LayoutMetaData:
+    async def _parse_layout(self, layout_name: str) -> LayoutMetaData:
         """Parse a layout template.
 
         Args:
@@ -50,11 +44,10 @@ class LayoutParser:
         Returns:
             LayoutMetaData: Parsed layout metadata
         """
-        async with aiofiles.open(layout_file, mode="r", encoding="utf-8") as f:
-            content = await f.read()
+        content, _, _ = self.env.get_source_layout(layout_name)
         meta = parse_meta_from_content(content)
         return LayoutMetaData(
-            name=layout_file.name,
+            name=layout_name,
             content=content,
             description=meta.description,
             created_at=meta.created_at,
@@ -70,10 +63,8 @@ class LayoutParser:
             List[LayoutMetaData]: List of layout metadata
         """
         layouts = []
-        for layout_file in self._layouts_dir.iterdir():
-            if not layout_file.is_file() or layout_file.name.startswith("."):
-                continue
-            layouts.append(await self._parse_layout(layout_file))
+        for layout_name in self.env.get_layout_names():
+            layouts.append(await self._parse_layout(layout_name))
         return layouts
 
     async def _build_layout_tree(self, layouts: List[LayoutMetaData]) -> None:

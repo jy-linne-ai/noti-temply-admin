@@ -6,10 +6,10 @@ to support more complex schema generation scenarios.
 
 import pprint
 
-from jinja2schema.model import Dictionary, List, Number, Tuple, Unknown, Variable
+from jinja2schema.model import Dictionary, List, Number, Unknown, Variable  # type: ignore
 
 
-class Integer(Number):  # type: ignore
+class Integer(Number):
     """A integer."""
 
     def __repr__(self) -> str:

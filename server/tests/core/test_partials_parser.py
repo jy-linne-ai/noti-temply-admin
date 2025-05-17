@@ -1,26 +1,17 @@
 """파셜 파서 테스트"""
 
 from datetime import datetime
-from pathlib import Path
 
 import pytest
-import pytest_asyncio
 
 from app.core.temply.metadata.meta_model import JST
 from app.core.temply.metadata.partial_parser import PartialParser
 
 
-def get_base_path() -> Path:
-    """테스트 데이터 경로"""
-    base = Path(__file__).parent.parent / "data"
-    return base
-
-
 @pytest.mark.asyncio
-async def test_partial_parser():
+async def test_partial_parser(data_env):
     """파셜 파서 테스트"""
-    base_path = get_base_path()
-    parser = PartialParser(base_path / "partials")
+    parser = PartialParser(data_env)
 
     # 파셜 파일 파싱
     partials = await parser.get_partials()
@@ -44,29 +35,14 @@ async def test_partial_parser():
     await parser.print_dependency_tree()
 
 
-@pytest_asyncio.fixture
-async def parser():
-    """PartialParser 인스턴스를 생성하는 fixture"""
-    base_path = get_base_path()
-    _parser = PartialParser(base_path / "partials")
-    # pylint: disable=protected-access
-    await _parser._ensure_initialized()  # 초기화 완료 대기
-    yield _parser  # return 대신 yield 사용
-
-
-async def get_temp_parser(tmp_path):
-    """Create a parser instance for testing."""
-    return PartialParser(tmp_path)
-
-
 @pytest.mark.asyncio
-async def test_get_partial_files(tmp_path):
+async def test_get_partial_files(temp_env):
     """Test getting list of partial files with meta info."""
     # 테스트용 파일 생성
-    test_file = tmp_path / "partials_test"
+    test_file = temp_env.partials_dir / "partials_test"
     test_file.write_text("""{#-\ndescription: 파셜 테스트\ncreated_at: 2024-07-01\n-#}\nContent""")
-    tmp_parser = await get_temp_parser(tmp_path)
-    files = await tmp_parser.get_partials()
+    parser = PartialParser(temp_env)
+    files = await parser.get_partials()
     assert len(files) == 1
     assert files[0].name == "partials_test"
     assert files[0].description == "파셜 테스트"
@@ -74,15 +50,17 @@ async def test_get_partial_files(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_parse_partial(parser):
+async def test_parse_partial(data_env):
     """파셜 템플릿 파싱 테스트"""
+    parser = PartialParser(data_env)
     dependencies = await parser.get_partial("partials_1")
     assert dependencies is not None
 
 
 @pytest.mark.asyncio
-async def test_build_tree(parser):
+async def test_build_tree(data_env):
     """Test building the dependency tree."""
+    parser = PartialParser(data_env)
     tree = await parser.get_partials()
 
     # Check that all nodes have the correct dependencies
@@ -93,8 +71,9 @@ async def test_build_tree(parser):
 
 
 @pytest.mark.asyncio
-async def test_print_tree(parser, capsys):
+async def test_print_tree(data_env, capsys):
     """Test printing the dependency tree."""
+    parser = PartialParser(data_env)
     await parser.print_tree()
     captured = capsys.readouterr()
     assert len(captured.out) > 0
@@ -102,8 +81,9 @@ async def test_print_tree(parser, capsys):
 
 
 @pytest.mark.asyncio
-async def test_get_all_nodes(parser):
+async def test_get_all_nodes(data_env):
     """Test getting all nodes from the tree."""
+    parser = PartialParser(data_env)
     all_nodes = await parser.get_partials()
 
     # 모든 노드가 있는지 확인
@@ -126,8 +106,9 @@ async def test_get_all_nodes(parser):
 
 
 @pytest.mark.asyncio
-async def test_partials_3_dependencies(parser):
+async def test_partials_3_dependencies(data_env):
     """Test partials_3 dependencies."""
+    parser = PartialParser(data_env)
     # partials_3 노드 확인
     node_3 = await parser.get_partial("partials_3")
     assert node_3 is not None, "partials_3 should exist in the tree"
@@ -145,8 +126,9 @@ async def test_partials_3_dependencies(parser):
 
 
 @pytest.mark.asyncio
-async def test_partials_53_dependencies(parser):
+async def test_partials_53_dependencies(data_env):
     """Test partials_53 dependencies."""
+    parser = PartialParser(data_env)
     # partials_53 노드 확인
     node_53 = await parser.get_partial("partials_53")
     assert node_53 is not None, "partials_53 should exist in the tree"

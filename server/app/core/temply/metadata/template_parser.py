@@ -5,29 +5,26 @@ This module provides functionality to parse Jinja2 templates.
 
 import asyncio
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import List, Optional, Set
 
-import aiofiles
-from jinja2 import Environment, FileSystemLoader, nodes
+from jinja2 import nodes
 
 from app.core.temply.metadata.meta_model import TemplateMetaData
 from app.core.temply.metadata.meta_parser import parse_meta_from_content
+from app.core.temply.temply_env import TemplyEnv
 
 
 class TemplateParser:
     """Parser for Jinja2 templates."""
 
-    def __init__(self, templates_dir: str | Path):
+    def __init__(self, temply_env: TemplyEnv):
         """Initialize the parser.
 
         Args:
             templates_dir: Directory containing template files
         """
-        self._templates_dir = Path(templates_dir)
-        self.env = Environment(
-            loader=FileSystemLoader(str(self._templates_dir)), extensions=["jinja2.ext.do"]
-        )
-        self.nodes: Dict[str, TemplateMetaData] = {}
+        self.env = temply_env
+        self.nodes: dict[str, TemplateMetaData] = {}
         self._initialized = False
         self._init_task = asyncio.create_task(self._initialize())
 
@@ -41,7 +38,7 @@ class TemplateParser:
         if not self._initialized:
             await self._init_task
 
-    async def _parse_template(self, category_name: str, template_file: Path) -> TemplateMetaData:
+    async def _parse_template(self, category_name: str, template_name: str) -> TemplateMetaData:
         """Parse a template file.
 
         Args:
@@ -50,19 +47,18 @@ class TemplateParser:
         Returns:
             TemplateMetaData: Parsed template metadata
         """
-        async with aiofiles.open(template_file, mode="r", encoding="utf-8") as f:
-            content = await f.read()
-            meta = parse_meta_from_content(content)
-            return TemplateMetaData(
-                category=category_name,
-                name=template_file.name,
-                content=content,
-                description=meta.description,
-                created_at=meta.created_at,
-                created_by=meta.created_by,
-                updated_at=meta.updated_at,
-                updated_by=meta.updated_by,
-            )
+        content, _, _ = self.env.get_source_template(category_name, template_name)
+        meta = parse_meta_from_content(content)
+        return TemplateMetaData(
+            category=category_name,
+            name=template_name,
+            content=content,
+            description=meta.description,
+            created_at=meta.created_at,
+            created_by=meta.created_by,
+            updated_at=meta.updated_at,
+            updated_by=meta.updated_by,
+        )
 
     async def _parse_template_files(self) -> List[TemplateMetaData]:
         """Parse template files and extract metadata.
@@ -71,19 +67,9 @@ class TemplateParser:
             List[TemplateMetaData]: List of template metadata
         """
         templates = []
-        for category_dir in self._templates_dir.iterdir():
-            if not category_dir.is_dir():
-                continue
-            if category_dir.name.startswith("."):
-                continue
-            for template_file in category_dir.iterdir():
-                if not template_file.is_file():
-                    continue
-                if template_file.name.startswith("."):
-                    continue
-                if template_file.name.endswith(".json"):
-                    continue
-                templates.append(await self._parse_template(category_dir.name, template_file))
+        for category_name in self.env.get_category_names():
+            for template_name in self.env.get_template_names(category_name):
+                templates.append(await self._parse_template(category_name, template_name))
         return templates
 
     async def _build_template_tree(self, templates: List[TemplateMetaData]) -> None:
@@ -111,7 +97,7 @@ class TemplateParser:
         for node in ast.body:
             if isinstance(node, nodes.Extends):
                 template_name = node.template.as_const()
-                if template_name.startswith("layouts/"):
+                if template_name.startswith(f"{self.env.layouts_dir_name}/"):
                     return template_name
 
         return None
@@ -130,19 +116,19 @@ class TemplateParser:
             # import 구문
             if isinstance(node, nodes.Import):
                 template_name = node.template.as_const()
-                if template_name.startswith("partials/"):
+                if template_name.startswith(f"{self.env.partials_dir_name}/"):
                     partials.append(template_name)
 
             # include 구문
             elif isinstance(node, nodes.Include):
                 template_name = node.template.as_const()
-                if template_name.startswith("partials/"):
+                if template_name.startswith(f"{self.env.partials_dir_name}/"):
                     partials.append(template_name)
 
             # from ... import 구문
             elif isinstance(node, nodes.FromImport):
                 template_name = node.template.as_const()
-                if template_name.startswith("partials/"):
+                if template_name.startswith(f"{self.env.partials_dir_name}/"):
                     partials.append(template_name)
 
             # macro 구문은 현재 노드에서 직접 처리하지 않음
