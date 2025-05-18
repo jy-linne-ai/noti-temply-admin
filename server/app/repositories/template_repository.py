@@ -18,11 +18,11 @@ class TemplateRepository:
         self.temply_env = temply_env
         self.template_parser = TemplateParser(self.temply_env)
 
-    async def create(self, user: User, template: TemplateCreate) -> Template:
+    async def create(self, user: User, category_name: str, template: TemplateCreate) -> Template:
         """템플릿 생성"""
         template = await self.template_parser.create(
             user,
-            template.category,
+            category_name,
             template.name,
             template.content,
             template.description,
@@ -32,9 +32,9 @@ class TemplateRepository:
 
         return Template.model_validate(template)
 
-    async def get(self, category: str, name: str) -> Template:
+    async def get(self, category_name: str, template_name: str) -> Template:
         """템플릿 조회"""
-        template = await self.template_parser.get_template(f"{category}/{name}")
+        template = await self.template_parser.get_template(f"{category_name}/{template_name}")
         return Template.model_validate(template)
 
     async def list(self) -> List[Template]:
@@ -43,13 +43,13 @@ class TemplateRepository:
         return [Template.model_validate(template) for template in templates]
 
     async def update(
-        self, user: User, category: str, name: str, template: TemplateUpdate
+        self, user: User, category_name: str, template_name: str, template: TemplateUpdate
     ) -> Template:
         """템플릿 수정"""
         updated_template = await self.template_parser.update(
             user,
-            category,
-            name,
+            category_name,
+            template_name,
             template.content,
             template.description,
             template.layout,
@@ -57,6 +57,18 @@ class TemplateRepository:
         )
         return Template.model_validate(updated_template)
 
-    async def delete(self, user: User, category: str, name: str) -> None:
+    async def delete(self, user: User, category_name: str, template_name: str) -> None:
         """템플릿 삭제"""
-        await self.template_parser.delete(user, category, name)
+        await self.template_parser.delete(user, category_name, template_name)
+
+    async def get_categories(self) -> List[str]:
+        """Get Categories"""
+        return await self.template_parser.get_categories()
+
+    async def get_templates(self, category_name: str) -> List[Template]:
+        """Get Templates"""
+        return await self.template_parser.get_templates_by_category(category_name)
+
+    async def delete_templates(self, user: User, category_name: str) -> None:
+        """Delete Templates"""
+        await self.template_parser.delete_templates(user, category_name)

@@ -26,3 +26,6 @@ class Config:
         self.file_encoding = "utf-8"
 
         self.noti_temply_dir: str = os.getenv("NOTI_TEMPLY_DIR", "noti-temply")
+
+
+CONFIG = Config()

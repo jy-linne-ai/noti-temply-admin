@@ -148,6 +148,7 @@ class TemplateParser:
 
     async def get_categories(self) -> List[str]:
         """Get all categories."""
+        await self._ensure_initialized()
         return list(set(template.category for template in self.nodes.values()))
 
     async def get_templates(self) -> List[TemplateMetaData]:
@@ -158,6 +159,11 @@ class TemplateParser:
         """
         await self._ensure_initialized()
         return list(self.nodes.values())
+
+    async def get_templates_by_category(self, category: str) -> List[TemplateMetaData]:
+        """Get all templates in a category."""
+        await self._ensure_initialized()
+        return [template for template in self.nodes.values() if template.category == category]
 
     async def get_template(self, template_path: str) -> TemplateMetaData:
         """Get a template by name.
@@ -254,7 +260,7 @@ class TemplateParser:
             if not self.env.check_file_name(category_name):
                 raise ValueError(f"Invalid category name: {category_name}")
 
-            if not self.env.check_file_name(template_name):
+            if not self.env.check_template_name(template_name):
                 raise ValueError(f"Invalid template name: {template_name}")
 
             if layout:
@@ -428,16 +434,35 @@ class TemplateParser:
             category_name: Category name
             template_name: Template name
         """
-
         await self._ensure_initialized()
         self._initialized = False
         try:
-            template_path = f"{category_name}/{template_name}"
-            if template_path not in self.nodes:
-                raise TemplateNotFoundError(f"Template {template_path} not found")
-            if not (self.env.templates_dir / template_path).exists():
-                raise TemplateNotFoundError(f"Template {template_path} not found")
-            os.remove(self.env.templates_dir / template_path)
-            del self.nodes[template_path]
+            await self._delete(user, category_name, template_name)
+        finally:
+            self._initialized = True
+
+    async def _delete(self, user: User, category_name: str, template_name: str) -> None:
+        """Delete a template.
+
+        Args:
+            category_name: Category name
+            template_name: Template name
+        """
+        template_path = f"{category_name}/{template_name}"
+        if template_path not in self.nodes:
+            raise TemplateNotFoundError(f"Template {template_path} not found")
+        if not (self.env.templates_dir / template_path).exists():
+            raise TemplateNotFoundError(f"Template {template_path} not found")
+        os.remove(self.env.templates_dir / template_path)
+        del self.nodes[template_path]
+
+    async def delete_templates(self, user: User, category_name: str) -> None:
+        """Delete Templates"""
+        await self._ensure_initialized()
+        self._initialized = False
+        try:
+            for template_name in self.env.get_template_names(category_name):
+                await self._delete(user, category_name, template_name)
+            os.rmdir(self.env.templates_dir / category_name)
         finally:
             self._initialized = True

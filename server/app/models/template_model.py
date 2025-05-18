@@ -10,7 +10,7 @@ from app.models.common_model import Meta
 class TemplateCreate(BaseModel):
     """템플릿 생성 모델"""
 
-    category: str = Field(..., description="템플릿 카테고리")
+    # category: str = Field(..., description="템플릿 카테고리")
     name: str = Field(..., description="템플릿 이름")
     description: Optional[str] = Field(None, description="템플릿 설명")
     layout: Optional[str] = Field(None, description="템플릿 레이아웃")

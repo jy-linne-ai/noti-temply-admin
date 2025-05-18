@@ -52,8 +52,8 @@ async def test_template_service_create_and_get(temp_env: TemplyEnv, user: User):
     # 템플릿 생성
     template = await template_service.create(
         user,
+        "test",
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
@@ -113,19 +113,19 @@ async def test_template_service_duplicate(temp_env: TemplyEnv, user: User):
     )
 
     # 템플릿 생성
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=layout.name,
         partials=[partial.name],
         content="test content",
     )
-    await template_service.create(user, template_create)
+    await template_service.create(user, category, template_create)
 
     # 중복 생성 시도
     with pytest.raises(TemplateAlreadyExistsError):
-        await template_service.create(user, template_create)
+        await template_service.create(user, category, template_create)
 
 
 @pytest.mark.asyncio
@@ -165,10 +165,11 @@ async def test_template_service_update(temp_env: TemplyEnv, user: User):
     )
 
     # 템플릿 생성
+    category = "test"
     template = await template_service.create(
         user,
+        category,
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
@@ -229,10 +230,11 @@ async def test_template_service_delete(temp_env: TemplyEnv, user: User):
     )
 
     # 템플릿 생성
+    category = "test"
     template = await template_service.create(
         user,
+        category,
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
@@ -268,10 +270,11 @@ async def test_template_service_nonexistent_layout(temp_env: TemplyEnv, user: Us
 
     # 존재하지 않는 레이아웃으로 템플릿 생성 시도
     with pytest.raises(LayoutNotFoundError):
+        category = "test"
         await template_service.create(
             user,
+            category,
             TemplateCreate(
-                category="test",
                 name=TemplateItems.HTML_EMAIL.value,
                 description="test description",
                 layout="nonexistent_layout",
@@ -299,10 +302,11 @@ async def test_template_service_nonexistent_partial(temp_env: TemplyEnv, user: U
 
     # 존재하지 않는 파셜로 템플릿 생성 시도
     with pytest.raises(PartialNotFoundError):
+        category = "test"
         await template_service.create(
             user,
+            category,
             TemplateCreate(
-                category="test",
                 name=TemplateItems.HTML_EMAIL.value,
                 description="test description",
                 layout=layout.name,
@@ -351,10 +355,11 @@ async def test_template_service_update_layout(temp_env: TemplyEnv, user: User):
     )
 
     # 템플릿 생성
+    category = "test"
     template = await template_service.create(
         user,
+        category,
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=old_layout.name,
@@ -427,10 +432,11 @@ async def test_template_service_update_partials(temp_env: TemplyEnv, user: User)
         new_partials.append(partial)
 
     # 템플릿 생성
+    category = "test"
     template = await template_service.create(
         user,
+        category,
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
@@ -489,10 +495,11 @@ async def test_template_service_with_multiple_partials(temp_env: TemplyEnv, user
         partials.append(partial)
 
     # 템플릿 생성
+    category = "test"
     template = await template_service.create(
         user,
+        category,
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
@@ -549,10 +556,11 @@ async def test_template_service_with_nested_partials(temp_env: TemplyEnv, user: 
     )
 
     # 템플릿 생성
+    category = "test"
     template = await template_service.create(
         user,
+        category,
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
@@ -566,3 +574,78 @@ async def test_template_service_with_nested_partials(temp_env: TemplyEnv, user: 
     assert get_template.partials is not None
     assert base_partial.name in get_template.partials
     assert dependent_partial.name in get_template.partials
+
+
+@pytest.mark.asyncio
+async def test_template_service_get_categories(temp_env: TemplyEnv, user: User):
+    """카테고리 목록 조회 테스트"""
+    template_service = TemplateService(TemplateRepository(temp_env))
+    category = "test_category"
+    template_name = TemplateItems.HTML_EMAIL.value
+    template_create = TemplateCreate(
+        name=template_name,
+        content="test content",
+        description="test description",
+        layout=None,
+        partials=None,
+    )
+
+    # 템플릿 생성
+    await template_service.create(user, category, template_create)
+
+    # 카테고리 목록 조회
+    categories = await template_service.get_categories()
+    assert category in categories
+
+
+@pytest.mark.asyncio
+async def test_template_service_get_templates_by_category(temp_env: TemplyEnv, user: User):
+    """카테고리별 템플릿 목록 조회 테스트"""
+    template_service = TemplateService(TemplateRepository(temp_env))
+    category = "test_category"
+    template_name = TemplateItems.HTML_EMAIL.value
+    template_create = TemplateCreate(
+        name=template_name,
+        content="test content",
+        description="test description",
+        layout=None,
+        partials=None,
+    )
+
+    # 템플릿 생성
+    await template_service.create(user, category, template_create)
+
+    # 카테고리별 템플릿 목록 조회
+    templates = await template_service.get_templates(category)
+    assert len(templates) == 1
+    assert templates[0].name == template_name
+    assert templates[0].category == category
+
+
+@pytest.mark.asyncio
+async def test_template_service_delete_templates_by_category(temp_env: TemplyEnv, user: User):
+    """카테고리별 템플릿 삭제 테스트"""
+    template_service = TemplateService(TemplateRepository(temp_env))
+    category = "test_category"
+    template_name = TemplateItems.HTML_EMAIL.value
+    template_create = TemplateCreate(
+        name=template_name,
+        content="test content",
+        description="test description",
+        layout=None,
+        partials=None,
+    )
+
+    # 템플릿 생성
+    await template_service.create(user, category, template_create)
+
+    # 카테고리별 템플릿 삭제
+    await template_service.delete_templates(user, category)
+
+    # 템플릿이 삭제되었는지 확인
+    with pytest.raises(TemplateNotFoundError):
+        await template_service.get(category, template_name)
+
+    # 카테고리별 템플릿 목록이 비어있는지 확인
+    templates = await template_service.get_templates(category)
+    assert len(templates) == 0

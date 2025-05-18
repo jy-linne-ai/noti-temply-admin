@@ -290,3 +290,20 @@ class TemplyEnv:
             return False
 
         return True
+
+    def check_template_name(self, template_name: str) -> bool:
+        """템플릿 이름이 유효한지 검사합니다.
+
+        Args:
+            template_name: 검사할 템플릿 이름
+
+        Returns:
+            bool: 템플릿 이름이 유효하면 True, 아니면 False
+        """
+        if not template_name:
+            return False
+        if not self.check_file_name(template_name):
+            return False
+        if template_name not in TemplateItems.__members__:
+            return False
+        return True

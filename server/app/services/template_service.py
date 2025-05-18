@@ -14,24 +14,36 @@ class TemplateService:
         """Initialize"""
         self.repository = repository
 
-    async def create(self, user: User, template: TemplateCreate) -> Template:
+    async def create(self, user: User, category_name: str, template: TemplateCreate) -> Template:
         """Create Template"""
-        return await self.repository.create(user, template)
+        return await self.repository.create(user, category_name, template)
 
-    async def get(self, category: str, name: str) -> Template:
+    async def get(self, category_name: str, template_name: str) -> Template:
         """Get Template"""
-        return await self.repository.get(category, name)
+        return await self.repository.get(category_name, template_name)
 
     async def list(self) -> List[Template]:
         """List Templates"""
         return await self.repository.list()
 
     async def update(
-        self, user: User, category: str, name: str, template: TemplateUpdate
+        self, user: User, category_name: str, template_name: str, template: TemplateUpdate
     ) -> Template:
         """Update Template"""
-        return await self.repository.update(user, category, name, template)
+        return await self.repository.update(user, category_name, template_name, template)
 
-    async def delete(self, user: User, category: str, name: str) -> None:
+    async def delete(self, user: User, category_name: str, template_name: str) -> None:
         """Delete Template"""
-        return await self.repository.delete(user, category, name)
+        return await self.repository.delete(user, category_name, template_name)
+
+    async def get_categories(self) -> List[str]:
+        """Get Categories"""
+        return await self.repository.get_categories()
+
+    async def get_templates(self, category_name: str) -> List[Template]:
+        """Get Templates"""
+        return await self.repository.get_templates(category_name)
+
+    async def delete_templates(self, user: User, category_name: str) -> None:
+        """Delete Templates by Category"""
+        return await self.repository.delete_templates(user, category_name)

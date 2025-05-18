@@ -40,20 +40,20 @@ async def test_template_repository(temp_env: TemplyEnv, user: User):
 
     template_repository = TemplateRepository(temp_env)
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    category = "test"
+    create_template = await template_repository.create(user, category, template_create)
     assert create_template.layout == create_layout.name
     assert create_template.partials == [create_partial.name]
     assert create_template.content == template_create.content
     assert create_template.description == template_create.description
     assert create_template.name == template_create.name
-    assert create_template.category == template_create.category
+    assert create_template.category == category
     assert create_template.updated_at is not None
     assert create_template.updated_by == user.name
     assert create_template.created_at is not None
@@ -98,17 +98,17 @@ async def test_template_duplicate(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    await template_repository.create(user, template_create)
+    await template_repository.create(user, category, template_create)
     with pytest.raises(TemplateAlreadyExistsError):
-        await template_repository.create(user, template_create)
+        await template_repository.create(user, category, template_create)
 
 
 @pytest.mark.asyncio
@@ -140,15 +140,15 @@ async def test_template_update(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
 
     # 업데이트
     update_content = "updated content"
@@ -207,10 +207,11 @@ async def test_template_invalid_name(temp_env: TemplyEnv, user: User):
 
     for invalid_name in invalid_names:
         with pytest.raises(ValueError):
+            category = "test"
             await template_repository.create(
                 user,
+                category,
                 TemplateCreate(
-                    category="test",
                     name=invalid_name,
                     description="test description",
                     layout=create_layout.name,
@@ -241,15 +242,15 @@ async def test_template_delete(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
 
     # 삭제
     await template_repository.delete(user, create_template.category, create_template.name)
@@ -283,15 +284,15 @@ async def test_template_with_multiple_partials(temp_env: TemplyEnv, user: User):
         partials.append(await partial_repository.create(user, partial_create))
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[p.name for p in partials],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
 
     # 생성된 템플릿 검증
     get_template = await template_repository.get(create_template.category, create_template.name)
@@ -346,15 +347,15 @@ async def test_template_with_nested_partials(temp_env: TemplyEnv, user: User):
     )
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[base_partial.name, dependent_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
 
     # 생성된 템플릿 검증
     get_template = await template_repository.get(create_template.category, create_template.name)
@@ -380,15 +381,15 @@ async def test_template_with_nested_partials(temp_env: TemplyEnv, user: User):
 async def test_template_without_layout_and_partials(temp_env: TemplyEnv, user: User):
     """레이아웃과 파셜이 없는 템플릿 생성 테스트"""
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=None,
         partials=[],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
     assert create_template.layout == ""  # None 대신 빈 문자열로 처리
     assert create_template.partials == []
     assert create_template.content == template_create.content
@@ -415,15 +416,15 @@ async def test_template_without_layout(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=None,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
     assert create_template.layout == ""  # None 대신 빈 문자열로 처리
     assert create_template.partials == [create_partial.name]
     assert create_template.content == template_create.content
@@ -452,15 +453,15 @@ async def test_template_without_partials(temp_env: TemplyEnv, user: User):
     create_layout = await layout_repository.create(user, layout_create)
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
     assert create_template.layout == create_layout.name
     assert create_template.partials == []
     assert create_template.content == template_create.content
@@ -495,15 +496,15 @@ async def test_template_with_single_partial(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
     assert create_template.layout == create_layout.name
     assert create_template.partials == [create_partial.name]
     assert create_template.content == template_create.content
@@ -544,15 +545,15 @@ async def test_template_with_two_partials(temp_env: TemplyEnv, user: User):
         partials.append(await partial_repository.create(user, partial_create))
 
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template_create = TemplateCreate(
-        category="test",
         name=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[p.name for p in partials],
         content="test content",
     )
-    create_template = await template_repository.create(user, template_create)
+    create_template = await template_repository.create(user, category, template_create)
     assert create_template.layout == create_layout.name
     assert create_template.partials is not None
     assert len(create_template.partials) == 2
@@ -612,10 +613,11 @@ async def test_template_update_layout(temp_env: TemplyEnv, user: User):
 
     # 템플릿 생성
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template = await template_repository.create(
         user,
+        category,
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=old_layout.name,
@@ -694,10 +696,11 @@ async def test_template_update_partials(temp_env: TemplyEnv, user: User):
 
     # 템플릿 생성
     template_repository = TemplateRepository(temp_env)
+    category = "test"
     template = await template_repository.create(
         user,
+        category,
         TemplateCreate(
-            category="test",
             name=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
@@ -750,10 +753,11 @@ async def test_template_nonexistent_layout(temp_env: TemplyEnv, user: User):
 
     template_repository = TemplateRepository(temp_env)
     with pytest.raises(LayoutNotFoundError):
+        category = "test"
         await template_repository.create(
             user,
+            category,
             TemplateCreate(
-                category="test",
                 name=TemplateItems.HTML_EMAIL.value,
                 description="test description",
                 layout="nonexistent_layout",
@@ -778,10 +782,11 @@ async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
 
     template_repository = TemplateRepository(temp_env)
     with pytest.raises(PartialNotFoundError):
+        category = "test"
         await template_repository.create(
             user,
+            category,
             TemplateCreate(
-                category="test",
                 name=TemplateItems.HTML_EMAIL.value,
                 description="test description",
                 layout=layout.name,
@@ -789,3 +794,81 @@ async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
                 content="test content",
             ),
         )
+
+
+@pytest.mark.asyncio
+async def test_template_repository_get_categories(temp_env: TemplyEnv, user: User):
+    """카테고리 목록 조회 테스트"""
+
+    template_repository = TemplateRepository(temp_env)
+    category = "test_category"
+    template_name = TemplateItems.HTML_EMAIL.value
+    template_create = TemplateCreate(
+        name=template_name,
+        content="test content",
+        description="test description",
+        layout=None,
+        partials=None,
+    )
+
+    # 템플릿 생성
+    await template_repository.create(user, category, template_create)
+
+    # 카테고리 목록 조회
+    categories = await template_repository.get_categories()
+    assert category in categories
+
+
+@pytest.mark.asyncio
+async def test_template_repository_get_templates_by_category(temp_env: TemplyEnv, user: User):
+    """카테고리별 템플릿 목록 조회 테스트"""
+
+    template_repository = TemplateRepository(temp_env)
+    category = "test_category"
+    template_name = TemplateItems.HTML_EMAIL.value
+    template_create = TemplateCreate(
+        name=template_name,
+        content="test content",
+        description="test description",
+        layout=None,
+        partials=None,
+    )
+
+    # 템플릿 생성
+    await template_repository.create(user, category, template_create)
+
+    # 카테고리별 템플릿 목록 조회
+    templates = await template_repository.get_templates(category)
+    assert len(templates) == 1
+    assert templates[0].name == template_name
+    assert templates[0].category == category
+
+
+@pytest.mark.asyncio
+async def test_template_repository_delete_templates_by_category(temp_env: TemplyEnv, user: User):
+    """카테고리별 템플릿 삭제 테스트"""
+
+    template_repository = TemplateRepository(temp_env)
+    category = "test_category"
+    template_name = TemplateItems.HTML_EMAIL.value
+    template_create = TemplateCreate(
+        name=template_name,
+        content="test content",
+        description="test description",
+        layout=None,
+        partials=None,
+    )
+
+    # 템플릿 생성
+    await template_repository.create(user, category, template_create)
+
+    # 카테고리별 템플릿 삭제
+    await template_repository.delete_templates(user, category)
+
+    # 템플릿이 삭제되었는지 확인
+    with pytest.raises(TemplateNotFoundError):
+        await template_repository.get(category, template_name)
+
+    # 카테고리별 템플릿 목록이 비어있는지 확인
+    templates = await template_repository.get_templates(category)
+    assert len(templates) == 0
