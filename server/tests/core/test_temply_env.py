@@ -1,4 +1,4 @@
-"""템플릿 파싱 테스트"""
+"""TemplyEnv 테스트"""
 
 import copy
 import difflib
@@ -16,7 +16,7 @@ from jsonschema.validators import RefResolver
 from app.core.temply.schema.mergers import merge
 from app.core.temply.schema.parser import get_mode_title
 from app.core.temply.schema.utils import generate_object
-from app.core.temply.temply_env import TemplateItems, infer_from_ast, to_json_schema
+from app.core.temply.temply_env import TemplateItems, TemplyEnv, infer_from_ast, to_json_schema
 
 
 def get_base_path() -> Path:
@@ -210,3 +210,49 @@ def test_parse_content(data_env, template_category_name):
             pass
 
     assert success_count > 0
+
+
+@pytest.mark.parametrize(
+    "file_name,expected",
+    [
+        # 유효한 파일명
+        ("test", True),
+        ("test_123", True),
+        ("test-partial", True),
+        ("layout_test", True),
+        ("template_1", True),
+        ("a" * 255, True),  # 최대 길이
+        # 빈 문자열
+        ("", False),
+        ("   ", False),
+        # 숨김/시스템/임시 파일
+        (".test", False),
+        ("~test", False),
+        ("..test", False),
+        # 길이 초과
+        ("a" * 256, False),
+        # 허용되지 않는 문자
+        ("test/test", False),
+        ("test\\test", False),
+        ("test:test", False),
+        ("test*test", False),
+        ("test?test", False),
+        ('test"test', False),
+        ("test<test", False),
+        ("test>test", False),
+        ("test|test", False),
+        ("test test", False),  # 공백
+        # 특수 케이스
+        (".", False),
+        ("..", False),
+    ],
+)
+def test_check_file_name(temp_env: TemplyEnv, file_name: str, expected: bool):
+    """파일명 검증 테스트
+
+    Args:
+        temp_env: TemplyEnv 인스턴스
+        file_name: 테스트할 파일명
+        expected: 예상되는 결과
+    """
+    assert temp_env.check_file_name(file_name) == expected

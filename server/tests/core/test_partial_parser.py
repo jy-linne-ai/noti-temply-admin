@@ -4,8 +4,8 @@ from datetime import datetime
 
 import pytest
 
-from app.core.temply.metadata.meta_model import JST
-from app.core.temply.metadata.partial_parser import PartialParser
+from app.core.temply.parser.meta_model import JST
+from app.core.temply.parser.partial_parser import PartialParser
 
 
 @pytest.mark.asyncio
@@ -40,21 +40,30 @@ async def test_get_partial_files(temp_env):
     """Test getting list of partial files with meta info."""
     # 테스트용 파일 생성
     test_file = temp_env.partials_dir / "partials_test"
-    test_file.write_text("""{#-\ndescription: 파셜 테스트\ncreated_at: 2024-07-01\n-#}\nContent""")
+    test_file.write_text(
+        """{#-\ndescription: 파셜 테스트\ncreated_at: 2024-07-01\n-#}\n{%- macro render() -%}\nContent\n{%- endmacro -%}\n"""
+    )
     parser = PartialParser(temp_env)
     files = await parser.get_partials()
     assert len(files) == 1
     assert files[0].name == "partials_test"
     assert files[0].description == "파셜 테스트"
     assert files[0].created_at == datetime(2024, 7, 1, tzinfo=JST)
+    assert files[0].dependencies == set()
+    assert files[0].children == []
+    assert files[0].parents == []
+    assert files[0].content == "Content"
 
 
 @pytest.mark.asyncio
 async def test_parse_partial(data_env):
     """파셜 템플릿 파싱 테스트"""
     parser = PartialParser(data_env)
-    dependencies = await parser.get_partial("partials_1")
-    assert dependencies is not None
+    partial = await parser.get_partial("partials_1")
+    assert partial is not None
+    assert partial.dependencies == set()
+    assert partial.children == []
+    assert partial.parents == []
 
 
 @pytest.mark.asyncio
@@ -123,6 +132,9 @@ async def test_partials_3_dependencies(data_env):
     assert "partials_46" in child_names, "partials_3 should have partials_46 as a child"
     assert "partials_55" in child_names, "partials_3 should have partials_55 as a child"
     assert len(child_names) == 7, "partials_3 should have exactly 7 children"
+    assert len(node_3.dependencies) == 0, "partials_3 should have no dependencies"
+    assert node_3.dependencies == set()
+    assert node_3.content != ""
 
 
 @pytest.mark.asyncio
@@ -151,3 +163,6 @@ async def test_partials_53_dependencies(data_env):
 
     assert "partials_53" in child_names_3, "partials_3 should have partials_53 as a child"
     assert "partials_53" in child_names_31, "partials_31 should have partials_53 as a child"
+    assert node_3.content != ""
+    assert node_31.content != ""
+    assert node_53.content != ""

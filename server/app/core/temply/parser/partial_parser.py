@@ -4,12 +4,14 @@ This module provides functionality to parse Jinja2 partials and build a dependen
 """
 
 import asyncio
+import os
 from typing import List, Optional, Set
 
 from jinja2 import nodes
 
-from app.core.temply.metadata.meta_model import PartialMetaData
-from app.core.temply.metadata.meta_parser import parse_meta_from_content
+from app.core.exceptions import PartialAlreadyExistsError, PartialNotFoundError
+from app.core.temply.parser.meta_model import BaseMetaData, PartialMetaData
+from app.core.temply.parser.meta_parser import MetaParser
 from app.core.temply.temply_env import TemplyEnv
 
 
@@ -47,16 +49,55 @@ class PartialParser:
             PartialMetaData: Parsed partial metadata
         """
         content, _, _ = self.env.get_source_partial(partial_name)
-        meta = parse_meta_from_content(content)
+        meta, block = MetaParser.parse(content)
+        dependencies, block = await self._extract_dependencies(block)
+        block = await self._remove_macro_wrapper(block)
         return PartialMetaData(
             name=partial_name,
-            content=content,
+            content=block.strip(),
+            dependencies=dependencies,
             description=meta.description,
             created_at=meta.created_at,
             created_by=meta.created_by,
             updated_at=meta.updated_at,
             updated_by=meta.updated_by,
         )
+
+    async def _remove_macro_wrapper(self, content: str) -> str:
+        """매크로 래퍼를 제거합니다.
+
+        Args:
+            content (str): 매크로가 포함된 내용
+            env (TemplyEnv): Jinja2 환경 객체
+
+        Returns:
+            str: 매크로 래퍼가 제거된 내용
+        """
+        lines = content.splitlines()
+        return "\n".join(lines[1:-1]) if len(lines) > 2 else ""
+
+    async def _extract_dependencies(self, content: str) -> tuple[Set[str], str]:
+        """Extract dependencies from partial content using AST.
+
+        Args:
+            content: Partial content
+
+        Returns:
+            tuple[Set[str], str]: (의존성 목록, import 구문이 제외된 본문)
+        """
+        dependencies = set()
+        ast = self.env.parse(content)
+
+        # import 구문 찾기
+        last_import_line = 0
+        for node in ast.body:
+            if isinstance(node, (nodes.Import, nodes.FromImport)):
+                template_name = node.template.as_const()
+                if template_name.startswith(f"{self.env.partials_dir_name}/"):
+                    dependencies.add(template_name.split("/")[-1])
+                    last_import_line = node.lineno
+
+        return dependencies, "\n".join(content.splitlines()[last_import_line:])
 
     async def _parse_partial_files(self) -> List[PartialMetaData]:
         """Parse partial files and extract metadata.
@@ -68,28 +109,6 @@ class PartialParser:
         for partial_name in self.env.get_partial_names():
             partials.append(await self._parse_partial(partial_name))
         return partials
-
-    async def _extract_dependencies(self, content: str) -> Set[str]:
-        """Extract dependencies from partial content using AST.
-
-        Args:
-            content: Partial content
-
-        Returns:
-            Set[str]: Set of dependency names
-        """
-        dependencies = set()
-        ast = self.env.parse(content)
-        for node in ast.body:
-            if isinstance(node, nodes.Import):
-                template_name = node.template.as_const()
-                if template_name.startswith(f"{self.env.partials_dir_name}/"):
-                    dependencies.add(template_name.split("/")[-1])
-            elif isinstance(node, nodes.FromImport):
-                template_name = node.template.as_const()
-                if template_name.startswith(f"{self.env.partials_dir_name}/"):
-                    dependencies.add(template_name.split("/")[-1])
-        return dependencies
 
     async def _build_dependency_tree(self, partials: List[PartialMetaData]) -> None:
         """Build the dependency tree for all partials.
@@ -104,11 +123,10 @@ class PartialParser:
         # Second pass: Build parent-child relationships
         for node in self.nodes.values():
             # 의존성 분석
-            dependencies = await self._extract_dependencies(node.content)
+            dependencies = node.dependencies
             for dep_name in dependencies:
                 if dep_name in self.nodes:
                     dep_node = self.nodes[dep_name]
-                    node.dependencies.add(dep_name)
                     # 의존하는 노드가 부모가 됨
                     node.parents.append(dep_node)
                     # 현재 노드가 의존하는 노드의 자식이 됨
@@ -123,14 +141,17 @@ class PartialParser:
         await self._ensure_initialized()
         return list(self.nodes.values())
 
-    async def get_partial(self, name: str) -> Optional[PartialMetaData]:
+    async def get_partial(self, name: str) -> PartialMetaData:
         """Get a partial by name.
 
         Args:
             name: Name of the partial
         """
         await self._ensure_initialized()
-        return self.nodes.get(name)
+        partial = self.nodes.get(name)
+        if partial is None:
+            raise PartialNotFoundError(f"Partial {name} not found")
+        return partial
 
     async def print_dependency_tree(
         self,
@@ -212,3 +233,104 @@ class PartialParser:
         print("  " * level + f"└─ {node.name}")
         for child in node.children:
             await self.print_tree(child, level + 1)
+
+    async def create(
+        self,
+        partial_name: str,
+        content: str,
+        meta: BaseMetaData,
+        dependencies: Set[str] | None = None,
+    ) -> PartialMetaData:
+        """Create a partial.
+
+        Args:
+            name: Name of the partial
+            content: Content of the partial
+            meta: Metadata of the partial
+            dependencies: Dependencies of the partial
+        """
+        await self._ensure_initialized()
+        self._initialized = False
+        try:
+
+            if not self.env.check_file_name(partial_name):
+                raise ValueError(f"Invalid partial name: {partial_name}")
+
+            if partial_name in self.nodes:
+                raise PartialAlreadyExistsError(f"Partial {partial_name} already exists")
+            if (self.env.partials_dir / partial_name).exists():
+                raise PartialAlreadyExistsError(f"Partial {partial_name} already exists")
+
+            await self._write_partial(partial_name, content, meta, dependencies)
+
+            self.nodes[partial_name] = await self._parse_partial(partial_name)
+            return self.nodes[partial_name]
+        finally:
+            self._initialized = True
+
+    async def _write_partial(
+        self,
+        partial_name: str,
+        content: str,
+        meta: BaseMetaData,
+        dependencies: Set[str] | None = None,
+    ) -> None:
+        """Write a partial."""
+
+        dependencies = dependencies or set()
+
+        for dep in dependencies:
+            if dep not in self.nodes:
+                raise FileNotFoundError(f"Dependency {dep} not found")
+
+        with open(self.env.partials_dir / partial_name, "w", encoding=self.env.file_encoding) as f:
+            f.write(self.env.make_meta_jinja_format(meta))
+            if dependencies:
+                for dep in self.env.make_partials_jinja_format(dependencies):
+                    f.write("\n")
+                    f.write(dep)
+            f.write("\n")
+            f.write(self.env.make_partial_body_jinja_format(content))
+            f.write("\n")
+
+    async def update(
+        self,
+        partial_name: str,
+        content: str,
+        meta: BaseMetaData,
+        dependencies: Set[str] | None = None,
+    ) -> PartialMetaData:
+        """Update a partial."""
+        await self._ensure_initialized()
+        self._initialized = False
+        try:
+            if partial_name not in self.nodes:
+                raise PartialNotFoundError(f"Partial {partial_name} not found")
+
+            if not (self.env.partials_dir / partial_name).exists():
+                raise PartialNotFoundError(f"Partial {partial_name} not found")
+
+            partial = await self.get_partial(partial_name)
+            meta.created_at = partial.created_at
+            meta.created_by = partial.created_by
+
+            await self._write_partial(partial_name, content, meta, dependencies)
+
+            self.nodes[partial_name] = await self._parse_partial(partial_name)
+            return self.nodes[partial_name]
+        finally:
+            self._initialized = True
+
+    async def delete(self, partial_name: str) -> None:
+        """Delete a partial."""
+        await self._ensure_initialized()
+        self._initialized = False
+        try:
+            if partial_name not in self.nodes:
+                raise PartialNotFoundError(f"Partial {partial_name} not found")
+            if not (self.env.partials_dir / partial_name).exists():
+                raise PartialNotFoundError(f"Partial {partial_name} not found")
+            os.remove(self.env.partials_dir / partial_name)
+            del self.nodes[partial_name]
+        finally:
+            self._initialized = True

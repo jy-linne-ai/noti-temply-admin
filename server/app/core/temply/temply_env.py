@@ -3,13 +3,14 @@
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Set
 
-from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined, Template
+from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined, Template, nodes
 from jinja2schema.model import Dictionary  # type: ignore
 from markupsafe import escape
 
 from app.core.config import Config
+from app.core.temply.parser.meta_model import JST, BaseMetaData
 from app.core.temply.schema.generator import infer_from_ast, to_json_schema
 from app.core.temply.schema.mergers import merge
 
@@ -38,6 +39,7 @@ class TemplyEnv:
         self.layouts_dir_name: str = "layouts"
         self.templates_dir_name: str = "templates"
         self.schema_file: str = "schema.json"
+        self.file_encoding: str = config.file_encoding
 
         if not (Path(str(self._config.noti_temply_dir))).exists():
             raise FileNotFoundError(f"path {self._config.noti_temply_dir} not found")
@@ -127,7 +129,7 @@ class TemplyEnv:
         """템플릿 조회"""
         return self.env.get_template(template_file_path)
 
-    def parse(self, content: str) -> Any:
+    def parse(self, content: str) -> nodes.Template:
         """템플릿 파싱"""
         return self.env.parse(content)
 
@@ -209,3 +211,82 @@ class TemplyEnv:
     def _get_partial_path(self, name: str) -> str:
         """파트 경로 조회"""
         return self.partials_dir_name + "/" + name
+
+    def _get_import_name(self, template: str) -> str:
+        """Get template name."""
+        return template.replace("/", "_").replace("-", "_")
+
+    def make_partials_jinja_format(self, partials: Set[str]) -> list[str]:
+        """Make partials in Jinja format."""
+        result = []
+        for partial in partials:
+            partial_name = f"{self.partials_dir_name}/{partial}"
+            result.append(
+                f"{{%- from '{partial_name}' import render as {self._get_import_name(partial_name)} with context -%}}"
+            )
+        return result
+
+    def make_meta_jinja_format(self, meta: BaseMetaData) -> str:
+        """Make meta in Jinja format."""
+        lines = ["{#-"]
+
+        lines.append(f"description: {meta.description or ''}")
+        lines.append(
+            # pylint: disable=line-too-long
+            f"created_at: {meta.created_at.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S') if meta.created_at else ''}"
+        )
+        lines.append(f"created_by: {meta.created_by or ''}")
+        lines.append(
+            # pylint: disable=line-too-long
+            f"updated_at: {meta.updated_at.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S') if meta.updated_at else ''}"
+        )
+        lines.append(f"updated_by: {meta.updated_by or ''}")
+        lines.append("-#}")
+        return "\n".join(lines)
+
+    def make_layout_jinja_format(self, layout: str) -> str:
+        """Make layout in Jinja format."""
+        return f"{{%- extends '{self.layouts_dir_name}/{layout}' -%}}"
+
+    def make_layout_body_jinja_format(self, content: str) -> str:
+        """Make layout body in Jinja format."""
+        return f"{{%- block content -%}}\n{content}\n{{%- endblock -%}}"
+
+    def make_partial_body_jinja_format(self, content: str) -> str:
+        """Make partial body in Jinja format."""
+        return f"{{%- macro render(locals = {{}}) -%}}\n{content}\n{{%- endmacro -%}}"
+
+    def make_template_body_jinja_format(self, content: str) -> str:
+        """Make template body in Jinja format."""
+        return f"{{%- block content -%}}\n{content}\n{{%- endblock -%}}"
+
+    def check_file_name(self, file_name: str) -> bool:
+        """파일명이 유효한지 검사합니다.
+
+        Args:
+            file_name: 검사할 파일명
+
+        Returns:
+            bool: 파일명이 유효하면 True, 아니면 False
+        """
+        # 빈 문자열 체크
+        if not file_name or not file_name.strip():
+            return False
+
+        # 숨김 파일, 시스템 파일, 임시 파일 제외
+        if file_name.startswith((".", "~", "..")):
+            return False
+
+        # 파일명 길이 제한 (Windows MAX_PATH = 260)
+        if len(file_name) > 255:
+            return False
+
+        # 파일명에 허용되지 않는 문자 포함 여부 확인
+        # Windows: \ / : * ? " < > |
+        # Unix: /
+        # 공백
+        invalid_chars = r'\/:*?"<>| '
+        if any(char in file_name for char in invalid_chars):
+            return False
+
+        return True

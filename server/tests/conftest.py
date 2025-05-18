@@ -7,6 +7,7 @@ import pytest
 
 from app.core.config import Config
 from app.core.temply.temply_env import TemplyEnv
+from app.models.common_model import User
 
 
 @pytest.fixture()
@@ -24,3 +25,9 @@ def temp_env(tmp_path):
     os.environ["NOTI_TEMPLY_DIR"] = str(tmp_path)
     conf = Config()
     return TemplyEnv(conf)
+
+
+@pytest.fixture()
+def user():
+    """사용자 설정"""
+    return User(name="test")

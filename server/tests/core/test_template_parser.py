@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.core.temply.metadata.template_parser import TemplateParser
+from app.core.temply.parser.template_parser import TemplateParser
 
 
 @pytest.mark.asyncio
