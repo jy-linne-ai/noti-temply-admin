@@ -25,6 +25,12 @@ class PartialAlreadyExistsError(Exception):
     pass
 
 
+class PartialCircularDependencyError(Exception):
+    """부분 순환 의존성 관련 예외 클래스"""
+
+    pass
+
+
 class TemplateNotFoundError(Exception):
     """템플릿 관련 예외 클래스"""
 

@@ -11,6 +11,7 @@ from app.core.exceptions import LayoutAlreadyExistsError, LayoutNotFoundError
 from app.core.temply.parser.meta_model import BaseMetaData, LayoutMetaData
 from app.core.temply.parser.meta_parser import MetaParser
 from app.core.temply.temply_env import TemplyEnv
+from app.models.common_model import User
 
 
 class LayoutParser:
@@ -46,17 +47,20 @@ class LayoutParser:
         Returns:
             LayoutMetaData: Parsed layout metadata
         """
-        content, _, _ = self.env.get_source_layout(layout_name)
-        meta, block = MetaParser.parse(content)
-        return LayoutMetaData(
-            name=layout_name,
-            content=block.strip(),
-            description=meta.description,
-            created_at=meta.created_at,
-            created_by=meta.created_by,
-            updated_at=meta.updated_at,
-            updated_by=meta.updated_by,
-        )
+        try:
+            content, _, _ = self.env.get_source_layout(layout_name)
+            meta, block = MetaParser.parse(content)
+            return LayoutMetaData(
+                name=layout_name,
+                content=block.strip(),
+                description=meta.description,
+                created_at=meta.created_at,
+                created_by=meta.created_by,
+                updated_at=meta.updated_at,
+                updated_by=meta.updated_by,
+            )
+        except FileNotFoundError as e:
+            raise LayoutNotFoundError(f"Layout {layout_name} not found: {e}") from e
 
     async def _parse_layout_files(self) -> List[LayoutMetaData]:
         """Parse layout files and extract metadata.
@@ -122,19 +126,21 @@ class LayoutParser:
         await self._ensure_initialized()
         return list(self.nodes.values())
 
-    async def get_layout(self, name: str) -> LayoutMetaData:
+    async def get_layout(self, layout_name: str) -> LayoutMetaData:
         """Get a layout by name.
 
         Args:
             name: Name of the layout
         """
         await self._ensure_initialized()
-        layout = self.nodes.get(name)
+        layout = self.nodes.get(layout_name)
         if layout is None:
-            raise LayoutNotFoundError(f"Layout {name} not found")
+            raise LayoutNotFoundError(f"Layout {layout_name} not found")
         return layout
 
-    async def create(self, layout_name: str, content: str, meta: BaseMetaData) -> LayoutMetaData:
+    async def create(
+        self, user: User, layout_name: str, content: str, description: Optional[str] = None
+    ) -> LayoutMetaData:
         """Create a layout.
 
         Args:
@@ -152,6 +158,14 @@ class LayoutParser:
                 raise LayoutAlreadyExistsError(f"Layout {layout_name} already exists")
             if (self.env.layouts_dir / layout_name).exists():
                 raise LayoutAlreadyExistsError(f"Layout {layout_name} already exists")
+
+            meta = BaseMetaData(
+                description=description,
+                created_at=BaseMetaData.get_current_datetime(),
+                created_by=user.name,
+                updated_at=BaseMetaData.get_current_datetime(),
+                updated_by=user.name,
+            )
 
             await self._write_layout(layout_name, content, meta)
 
@@ -173,7 +187,9 @@ class LayoutParser:
             f.write("\n")
             f.write(content)
 
-    async def update(self, layout_name: str, content: str, meta: BaseMetaData) -> LayoutMetaData:
+    async def update(
+        self, user: User, layout_name: str, content: str, description: Optional[str] = None
+    ) -> LayoutMetaData:
         """Update a layout.
 
         Args:
@@ -191,8 +207,14 @@ class LayoutParser:
                 raise LayoutNotFoundError(f"Layout {layout_name} not found")
 
             layout = await self.get_layout(layout_name)
-            meta.created_at = layout.created_at
-            meta.created_by = layout.created_by
+
+            meta = BaseMetaData(
+                description=description,
+                created_at=layout.created_at,
+                created_by=layout.created_by,
+                updated_at=BaseMetaData.get_current_datetime(),
+                updated_by=user.name,
+            )
 
             await self._write_layout(layout_name, content, meta)
 
@@ -201,7 +223,7 @@ class LayoutParser:
         finally:
             self._initialized = True
 
-    async def delete(self, layout_name: str) -> None:
+    async def delete(self, user: User, layout_name: str) -> None:
         """Delete a layout.
 
         Args:

@@ -9,10 +9,16 @@ from typing import List, Optional, Set
 
 from jinja2 import nodes
 
-from app.core.exceptions import TemplateAlreadyExistsError, TemplateNotFoundError
+from app.core.exceptions import (
+    LayoutNotFoundError,
+    PartialNotFoundError,
+    TemplateAlreadyExistsError,
+    TemplateNotFoundError,
+)
 from app.core.temply.parser.meta_model import BaseMetaData, TemplateMetaData
 from app.core.temply.parser.meta_parser import MetaParser
 from app.core.temply.temply_env import TemplyEnv
+from app.models.common_model import User
 
 
 class TemplateParser:
@@ -48,23 +54,26 @@ class TemplateParser:
         Returns:
             TemplateMetaData: Parsed template metadata
         """
-        content, _, _ = self.env.get_source_template(category_name, template_name)
-        meta, block = MetaParser.parse(content)
-        layout, block = await self._extract_layout(block)
-        partials, block = await self._extract_partials(block)
-        block = await self._remove_block_wrapper(block)
-        return TemplateMetaData(
-            category=category_name,
-            name=template_name,
-            content=block.strip(),
-            layout=layout,
-            partials=partials,
-            description=meta.description,
-            created_at=meta.created_at,
-            created_by=meta.created_by,
-            updated_at=meta.updated_at,
-            updated_by=meta.updated_by,
-        )
+        try:
+            content, _, _ = self.env.get_source_template(category_name, template_name)
+            meta, block = MetaParser.parse(content)
+            layout, block = await self._extract_layout(block)
+            partials, block = await self._extract_partials(block)
+            block = await self._remove_block_wrapper(block)
+            return TemplateMetaData(
+                category=category_name,
+                name=template_name,
+                content=block.strip(),
+                layout=layout,
+                partials=partials,
+                description=meta.description,
+                created_at=meta.created_at,
+                created_by=meta.created_by,
+                updated_at=meta.updated_at,
+                updated_by=meta.updated_by,
+            )
+        except FileNotFoundError as e:
+            raise TemplateNotFoundError(f"Template {template_name} not found: {e}") from e
 
     async def _parse_template_files(self) -> List[TemplateMetaData]:
         """Parse template files and extract metadata.
@@ -211,12 +220,13 @@ class TemplateParser:
 
     async def create(
         self,
+        user: User,
         category_name: str,
         template_name: str,
         content: str,
-        layout: str,
-        partials: List[str],
-        meta: BaseMetaData,
+        description: Optional[str] = None,
+        layout: Optional[str] = None,
+        partials: Optional[List[str]] = None,
     ) -> TemplateMetaData:
         """Create a template.
 
@@ -233,7 +243,8 @@ class TemplateParser:
 
         Raises:
             TemplateAlreadyExistsError: If the template already exists
-            FileNotFoundError: If the layout or partials are not found
+            ValueError: If the category or template name is invalid
+            PartialNotFoundError: If the partial is not found
 
         """
         await self._ensure_initialized()
@@ -246,19 +257,32 @@ class TemplateParser:
             if not self.env.check_file_name(template_name):
                 raise ValueError(f"Invalid template name: {template_name}")
 
-            if layout and not self.env.check_file_name(layout):
-                raise ValueError(f"Invalid layout name: {layout}")
+            if layout:
+                if not self.env.check_file_name(layout):
+                    raise ValueError(f"Invalid layout name: {layout}")
+                if not (self.env.layouts_dir / layout).exists():
+                    raise LayoutNotFoundError(f"Layout {layout} not found")
 
             if partials:
                 for partial in partials:
                     if not self.env.check_file_name(partial):
                         raise ValueError(f"Invalid partial name: {partial}")
+                    if not (self.env.partials_dir / partial).exists():
+                        raise PartialNotFoundError(f"Partial {partial} not found")
 
             template_path = f"{category_name}/{template_name}"
             if template_path in self.nodes:
                 raise TemplateAlreadyExistsError(f"Template {template_path} already exists")
             if (self.env.templates_dir / template_path).exists():
                 raise TemplateAlreadyExistsError(f"Template {template_path} already exists")
+
+            meta = BaseMetaData(
+                description=description,
+                created_at=BaseMetaData.get_current_datetime(),
+                created_by=user.name,
+                updated_at=BaseMetaData.get_current_datetime(),
+                updated_by=user.name,
+            )
 
             await self._write_template(
                 category_name, template_name, content, layout, partials, meta
@@ -338,12 +362,13 @@ class TemplateParser:
 
     async def update(
         self,
+        user: User,
         category_name: str,
         template_name: str,
         content: str,
-        layout: str,
-        partials: List[str],
-        meta: BaseMetaData,
+        description: Optional[str] = None,
+        layout: Optional[str] = None,
+        partials: Optional[List[str]] = None,
     ) -> TemplateMetaData:
         """Update a template.
 
@@ -379,8 +404,13 @@ class TemplateParser:
                 raise TemplateNotFoundError(f"Template {template_path} not found")
 
             template = await self.get_template(template_path)
-            meta.created_at = template.created_at
-            meta.created_by = template.created_by
+            meta = BaseMetaData(
+                description=description,
+                created_at=template.created_at,
+                created_by=template.created_by,
+                updated_at=BaseMetaData.get_current_datetime(),
+                updated_by=user.name,
+            )
 
             await self._write_template(
                 category_name, template_name, content, layout, partials, meta
@@ -391,7 +421,7 @@ class TemplateParser:
         finally:
             self._initialized = True
 
-    async def delete(self, category_name: str, template_name: str) -> None:
+    async def delete(self, user: User, category_name: str, template_name: str) -> None:
         """Delete a template.
 
         Args:

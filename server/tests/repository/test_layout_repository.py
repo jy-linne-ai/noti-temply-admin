@@ -1,7 +1,5 @@
 """레이아웃 리포지토리 테스트"""
 
-import asyncio
-
 import pytest
 
 from app.core.exceptions import LayoutAlreadyExistsError, LayoutNotFoundError
@@ -86,6 +84,11 @@ async def test_layout_update(temp_env: TemplyEnv, user: User):
     assert update_layout.updated_at is not None
     assert update_layout.updated_by == user.name
 
+    # 업데이트된 레이아웃 조회
+    get_layout = await layout_repository.get(create_layout.name)
+    assert get_layout.content == update_content
+    assert get_layout.description == update_description
+
 
 @pytest.mark.asyncio
 async def test_layout_invalid_name(temp_env: TemplyEnv, user: User):
@@ -125,9 +128,7 @@ async def test_layout_delete(temp_env: TemplyEnv, user: User):
         description="test layout description",
     )
     create_layout = await layout_repository.create(user, layout_create)
-
-    # 삭제
-    await layout_repository.delete(create_layout.name)
+    await layout_repository.delete(user, create_layout.name)
 
     # 삭제 확인
     with pytest.raises(LayoutNotFoundError):
@@ -195,3 +196,37 @@ async def test_layout_with_extends(temp_env: TemplyEnv, user: User):
     get_child = await layout_repository.get(child_layout.name)
     assert "{% extends 'layouts/base_layout' %}" in get_child.content
     assert "{% block content %}Child content{% endblock %}" in get_child.content
+
+
+@pytest.mark.asyncio
+async def test_layout_multiple(temp_env: TemplyEnv, user: User):
+    """여러 레이아웃 생성/조회 테스트"""
+    layout_repository = LayoutRepository(temp_env)
+    layouts = []
+
+    # 여러 레이아웃 생성
+    for i in range(3):
+        layout_create = LayoutCreate(
+            name=f"test_layout_{i}",
+            content=f"test layout content {i}",
+            description=f"test layout description {i}",
+        )
+        layouts.append(await layout_repository.create(user, layout_create))
+
+    # 생성된 레이아웃 검증
+    for i, layout in enumerate(layouts):
+        get_layout = await layout_repository.get(layout.name)
+        assert get_layout.name == f"test_layout_{i}"
+        assert get_layout.content == f"test layout content {i}"
+        assert get_layout.description == f"test layout description {i}"
+        assert get_layout.created_at is not None
+        assert get_layout.created_by == user.name
+        assert get_layout.updated_at is not None
+        assert get_layout.updated_by == user.name
+
+    # 파일 내용 검증
+    for layout in layouts:
+        content, _, _ = temp_env.get_source_layout(layout.name)
+        assert layout.content in content
+        if layout.description:
+            assert layout.description in content

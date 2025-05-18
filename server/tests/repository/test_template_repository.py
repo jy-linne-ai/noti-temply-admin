@@ -2,7 +2,12 @@
 
 import pytest
 
-from app.core.exceptions import TemplateAlreadyExistsError, TemplateNotFoundError
+from app.core.exceptions import (
+    LayoutNotFoundError,
+    PartialNotFoundError,
+    TemplateAlreadyExistsError,
+    TemplateNotFoundError,
+)
 from app.core.temply.temply_env import TemplateItems, TemplyEnv
 from app.models.common_model import User
 from app.models.layout_model import LayoutCreate
@@ -247,7 +252,7 @@ async def test_template_delete(temp_env: TemplyEnv, user: User):
     create_template = await template_repository.create(user, template_create)
 
     # 삭제
-    await template_repository.delete(create_template.category, create_template.name)
+    await template_repository.delete(user, create_template.category, create_template.name)
 
     # 삭제 확인
     with pytest.raises(TemplateNotFoundError):
@@ -566,3 +571,221 @@ async def test_template_with_two_partials(temp_env: TemplyEnv, user: User):
             in load_content
         )
     assert create_template.content in load_content
+
+
+@pytest.mark.asyncio
+async def test_template_update_layout(temp_env: TemplyEnv, user: User):
+    """템플릿 업데이트 시 레이아웃 변경 테스트"""
+    layout_repository = LayoutRepository(temp_env)
+    partial_repository = PartialRepository(temp_env)
+
+    # 기존 레이아웃 생성
+    old_layout = await layout_repository.create(
+        user,
+        LayoutCreate(
+            name="old_layout",
+            content="old layout content",
+            description="old layout description",
+        ),
+    )
+
+    # 새 레이아웃 생성
+    new_layout = await layout_repository.create(
+        user,
+        LayoutCreate(
+            name="new_layout",
+            content="new layout content",
+            description="new layout description",
+        ),
+    )
+
+    # 파셜 생성
+    partial = await partial_repository.create(
+        user,
+        PartialCreate(
+            name="test_partial",
+            content="test partial content",
+            description="test partial description",
+            dependencies=set(),
+        ),
+    )
+
+    # 템플릿 생성
+    template_repository = TemplateRepository(temp_env)
+    template = await template_repository.create(
+        user,
+        TemplateCreate(
+            category="test",
+            name=TemplateItems.HTML_EMAIL.value,
+            description="test description",
+            layout=old_layout.name,
+            partials=[partial.name],
+            content="test content",
+        ),
+    )
+
+    # 레이아웃 변경
+    updated_template = await template_repository.update(
+        user,
+        template.category,
+        template.name,
+        TemplateUpdate(
+            content=template.content,
+            description=template.description,
+            layout=new_layout.name,
+            partials=template.partials,
+        ),
+    )
+
+    assert updated_template.layout == new_layout.name
+    assert updated_template.content == template.content
+    assert updated_template.partials == template.partials
+
+    # 파일 내용 검증
+    load_content, _, _ = temp_env.get_source_template(
+        updated_template.category, updated_template.name
+    )
+    assert temp_env.make_layout_jinja_format(new_layout.name) in load_content
+
+
+@pytest.mark.asyncio
+async def test_template_update_partials(temp_env: TemplyEnv, user: User):
+    """템플릿 업데이트 시 파셜 변경 테스트"""
+    layout_repository = LayoutRepository(temp_env)
+    partial_repository = PartialRepository(temp_env)
+
+    # 레이아웃 생성
+    layout = await layout_repository.create(
+        user,
+        LayoutCreate(
+            name="test_layout",
+            content="test layout content",
+            description="test layout description",
+        ),
+    )
+
+    # 기존 파셜들 생성
+    old_partials = []
+    for i in range(2):
+        partial = await partial_repository.create(
+            user,
+            PartialCreate(
+                name=f"old_partial_{i}",
+                content=f"old partial content {i}",
+                description=f"old partial description {i}",
+                dependencies=set(),
+            ),
+        )
+        old_partials.append(partial)
+
+    # 새 파셜들 생성
+    new_partials = []
+    for i in range(2):
+        partial = await partial_repository.create(
+            user,
+            PartialCreate(
+                name=f"new_partial_{i}",
+                content=f"new partial content {i}",
+                description=f"new partial description {i}",
+                dependencies=set(),
+            ),
+        )
+        new_partials.append(partial)
+
+    # 템플릿 생성
+    template_repository = TemplateRepository(temp_env)
+    template = await template_repository.create(
+        user,
+        TemplateCreate(
+            category="test",
+            name=TemplateItems.HTML_EMAIL.value,
+            description="test description",
+            layout=layout.name,
+            partials=[p.name for p in old_partials],
+            content="test content",
+        ),
+    )
+
+    # 파셜 변경
+    updated_template = await template_repository.update(
+        user,
+        template.category,
+        template.name,
+        TemplateUpdate(
+            content=template.content,
+            description=template.description,
+            layout=layout.name,
+            partials=[p.name for p in new_partials],
+        ),
+    )
+
+    assert updated_template.layout == layout.name
+    assert updated_template.content == template.content
+    assert set(updated_template.partials or []) == {p.name for p in new_partials}
+
+    # 파일 내용 검증
+    load_content, _, _ = temp_env.get_source_template(
+        updated_template.category, updated_template.name
+    )
+    for partial in new_partials:
+        assert (
+            f"{{%- from 'partials/{partial.name}' import render as partials_{partial.name} with context -%}}"
+            in load_content
+        )
+
+
+@pytest.mark.asyncio
+async def test_template_nonexistent_layout(temp_env: TemplyEnv, user: User):
+    """존재하지 않는 레이아웃 참조 테스트"""
+    partial_repository = PartialRepository(temp_env)
+    partial = await partial_repository.create(
+        user,
+        PartialCreate(
+            name="test_partial",
+            content="test partial content",
+            description="test partial description",
+            dependencies=set(),
+        ),
+    )
+
+    template_repository = TemplateRepository(temp_env)
+    with pytest.raises(LayoutNotFoundError):
+        await template_repository.create(
+            user,
+            TemplateCreate(
+                category="test",
+                name=TemplateItems.HTML_EMAIL.value,
+                description="test description",
+                layout="nonexistent_layout",
+                partials=[partial.name],
+                content="test content",
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
+    """존재하지 않는 파셜 참조 테스트"""
+    layout_repository = LayoutRepository(temp_env)
+    layout = await layout_repository.create(
+        user,
+        LayoutCreate(
+            name="test_layout",
+            content="test layout content",
+            description="test layout description",
+        ),
+    )
+
+    template_repository = TemplateRepository(temp_env)
+    with pytest.raises(PartialNotFoundError):
+        await template_repository.create(
+            user,
+            TemplateCreate(
+                category="test",
+                name=TemplateItems.HTML_EMAIL.value,
+                description="test description",
+                layout=layout.name,
+                partials=["nonexistent_partial"],
+                content="test content",
+            ),
+        )

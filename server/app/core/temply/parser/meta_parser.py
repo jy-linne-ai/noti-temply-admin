@@ -23,7 +23,7 @@ class MetaParser:
         """
         block = content
         # 메타데이터 블록 찾기
-        pattern = r"^{#-\s*([\s\S]*?)\s*-#}"
+        pattern = r"^\s*{#-\s*([\s\S]*?)\s*-#}\s*"
         match = re.search(pattern, block)
         if not match:
             return BaseMetaData(), block

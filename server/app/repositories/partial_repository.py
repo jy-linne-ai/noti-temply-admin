@@ -1,4 +1,7 @@
-from app.core.temply.parser.meta_model import BaseMetaData
+"""Partial Repository"""
+
+from typing import List
+
 from app.core.temply.parser.partial_parser import PartialParser
 from app.core.temply.temply_env import TemplyEnv
 from app.models.common_model import User
@@ -15,33 +18,39 @@ class PartialRepository:
 
     async def create(self, user: User, partial: PartialCreate) -> Partial:
         """Create Partial"""
-        meta = BaseMetaData(
-            description=partial.description,
-            created_at=BaseMetaData.get_current_datetime(),
-            created_by=user.name,
-            updated_at=BaseMetaData.get_current_datetime(),
-            updated_by=user.name,
-        )
         partial_meta = await self.partial_parser.create(
-            partial.name, partial.content, meta, partial.dependencies
+            user, partial.name, partial.content, partial.description, partial.dependencies
         )
         return Partial.model_validate(partial_meta)
 
-    async def get(self, name: str) -> Partial:
+    async def get(self, partial_name: str) -> Partial:
         """Get Partial"""
-        partial = await self.partial_parser.get_partial(name)
+        partial = await self.partial_parser.get_partial(partial_name)
         return Partial.model_validate(partial)
 
-    async def update(self, user: User, name: str, partial: PartialUpdate) -> Partial:
+    async def list(self) -> List[Partial]:
+        """List Partials"""
+        partials = await self.partial_parser.get_partials()
+        return [Partial.model_validate(partial) for partial in partials]
+
+    async def get_root(self) -> List[Partial]:
+        """Get Root"""
+        partials = await self.partial_parser.get_partials()
+        return [Partial.model_validate(partial) for partial in partials if not partial.dependencies]
+
+    async def get_children(self, partial_name: str) -> List[Partial]:
+        """Get Children"""
+        # 먼저 파셜이 존재하는지 확인
+        partial = await self.partial_parser.get_partial(partial_name)
+        return [Partial.model_validate(p) for p in partial.children]
+
+    async def update(self, user: User, partial_name: str, partial: PartialUpdate) -> Partial:
         """Update Partial"""
-        meta = BaseMetaData(
-            description=partial.description,
-            updated_at=BaseMetaData.get_current_datetime(),
-            updated_by=user.name,
+        partial = await self.partial_parser.update(
+            user, partial_name, partial.content, partial.description, partial.dependencies
         )
-        partial = await self.partial_parser.update(name, partial.content, meta)
         return Partial.model_validate(partial)
 
-    async def delete(self, name: str) -> None:
+    async def delete(self, user: User, partial_name: str) -> None:
         """Delete Partial"""
-        await self.partial_parser.delete(name)
+        await self.partial_parser.delete(user, partial_name)

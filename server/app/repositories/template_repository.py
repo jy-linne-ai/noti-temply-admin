@@ -2,7 +2,8 @@
 템플릿 리포지토리
 """
 
-from app.core.temply.parser.meta_model import BaseMetaData
+from typing import List
+
 from app.core.temply.parser.template_parser import TemplateParser
 from app.core.temply.temply_env import TemplyEnv
 from app.models.common_model import User
@@ -19,21 +20,16 @@ class TemplateRepository:
 
     async def create(self, user: User, template: TemplateCreate) -> Template:
         """템플릿 생성"""
-        meta = BaseMetaData(
-            description=template.description,
-            created_at=BaseMetaData.get_current_datetime(),
-            created_by=user.name,
-            updated_at=BaseMetaData.get_current_datetime(),
-            updated_by=user.name,
-        )
         template = await self.template_parser.create(
+            user,
             template.category,
             template.name,
             template.content,
+            template.description,
             template.layout,
             template.partials,
-            meta,
         )
+
         return Template.model_validate(template)
 
     async def get(self, category: str, name: str) -> Template:
@@ -41,28 +37,26 @@ class TemplateRepository:
         template = await self.template_parser.get_template(f"{category}/{name}")
         return Template.model_validate(template)
 
+    async def list(self) -> List[Template]:
+        """List Templates"""
+        templates = await self.template_parser.get_templates()
+        return [Template.model_validate(template) for template in templates]
+
     async def update(
         self, user: User, category: str, name: str, template: TemplateUpdate
     ) -> Template:
         """템플릿 수정"""
-        existing_template = await self.get(category, name)
-        meta = BaseMetaData(
-            description=template.description,
-            updated_at=BaseMetaData.get_current_datetime(),
-            updated_by=user.name,
-            created_at=existing_template.created_at,
-            created_by=existing_template.created_by,
-        )
         updated_template = await self.template_parser.update(
+            user,
             category,
             name,
             template.content,
+            template.description,
             template.layout,
-            template.partials or [],
-            meta,
+            template.partials,
         )
         return Template.model_validate(updated_template)
 
-    async def delete(self, category: str, name: str) -> None:
+    async def delete(self, user: User, category: str, name: str) -> None:
         """템플릿 삭제"""
-        await self.template_parser.delete(category, name)
+        await self.template_parser.delete(user, category, name)
