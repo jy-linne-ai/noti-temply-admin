@@ -61,45 +61,45 @@ async def delete_templates_by_category(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.get("/{category}/templates/{template_name}", response_model=Template)
+@router.get("/{category}/templates/{template}", response_model=Template)
 async def get_template(
     category: str,
-    template_name: str,
+    template: str,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
 ) -> List[Template]:
     """특정 카테고리의 특정 타입 템플릿 목록을 조회합니다."""
     try:
-        return await template_service.get(category, template_name)
+        return await template_service.get(category, template)
     except TemplateNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.put("/{category}/templates/{template_name}", response_model=Template)
+@router.put("/{category}/templates/{template}", response_model=Template)
 async def update_template(
     category: str,
-    template_name: str,
+    template: str,
     template_update: TemplateUpdate,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
 ) -> Template:
     """템플릿을 수정합니다."""
     try:
-        return await template_service.update(user, category, template_name, template_update)
+        return await template_service.update(user, category, template, template_update)
     except TemplateNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.delete("/{category}/templates/{template_name}")
+@router.delete("/{category}/templates/{template}")
 async def delete_template(
     category: str,
-    template_name: str,
+    template: str,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
 ) -> JSONResponse:
     """템플릿을 삭제합니다."""
     try:
-        await template_service.delete(user, category, template_name)
+        await template_service.delete(user, category, template)
         return JSONResponse(status_code=204, content={"message": "Template deleted successfully"})
     except TemplateNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

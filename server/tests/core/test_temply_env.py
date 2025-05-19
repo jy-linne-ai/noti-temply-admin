@@ -403,6 +403,6 @@ async def test_temply_env_make_jinja_format(temp_env: TemplyEnv):
     assert "{%- macro render(locals = {}) -%}" in partial_body
     assert content in partial_body
 
-    template_body = temp_env.make_template_body_jinja_format(content)
-    assert "{%- block content -%}" in template_body
-    assert content in template_body
+    # template_body = temp_env.make_template_body_jinja_format(content)
+    # assert "{%- block content -%}" in template_body
+    # assert content in template_body

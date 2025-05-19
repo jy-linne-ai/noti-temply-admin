@@ -256,9 +256,9 @@ class TemplyEnv:
         """Make partial body in Jinja format."""
         return f"{{%- macro render(locals = {{}}) -%}}\n{content}\n{{%- endmacro -%}}"
 
-    def make_template_body_jinja_format(self, content: str) -> str:
-        """Make template body in Jinja format."""
-        return f"{{%- block content -%}}\n{content}\n{{%- endblock -%}}"
+    # def make_template_body_jinja_format(self, content: str) -> str:
+    #     """Make template body in Jinja format."""
+    #     return f"{{%- block content -%}}\n{content}\n{{%- endblock -%}}"
 
     def check_file_name(self, file_name: str) -> bool:
         """파일명이 유효한지 검사합니다.

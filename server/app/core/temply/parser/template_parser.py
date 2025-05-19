@@ -77,7 +77,7 @@ class TemplateParser:
             meta, block = MetaParser.parse(content)
             layout, block = await self._extract_layout(block)
             partials, block = await self._extract_partials(block)
-            block = await self._remove_block_wrapper(block)
+            # block = await self._remove_block_wrapper(block)
             return TemplateMetaData(
                 category=category_name,
                 name=template_name,
@@ -154,15 +154,15 @@ class TemplateParser:
                 if template_name.startswith(f"{self.env.partials_dir_name}/"):
                     partials.append(template_name.split("/")[-1])
                     last_import_line = node.lineno
-            elif isinstance(node, nodes.Block):
+            else:
                 break
 
         return partials, "\n".join(content.splitlines()[last_import_line:])
 
-    async def _remove_block_wrapper(self, content: str) -> str:
-        """Remove block wrapper from template content."""
-        lines = content.splitlines()
-        return "\n".join(lines[1:-1]) if len(lines) > 2 else ""
+    # async def _remove_block_wrapper(self, content: str) -> str:
+    #     """Remove block wrapper from template content."""
+    #     lines = content.splitlines()
+    #     return "\n".join(lines[1:-1]) if len(lines) > 2 else ""
 
     async def get_categories(self) -> List[str]:
         """Get all categories."""
@@ -344,7 +344,8 @@ class TemplateParser:
                     f.write("\n")
                     f.write(partial)
             f.write("\n")
-            f.write(self.env.make_template_body_jinja_format(content))
+            # f.write(self.env.make_template_body_jinja_format(content))
+            f.write(content)
             f.write("\n")
 
     async def _write_template_dependencies(

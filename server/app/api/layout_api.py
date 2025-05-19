@@ -15,7 +15,7 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=Layout)
+@router.post("", response_model=Layout)
 async def create_layout(
     layout_create: LayoutCreate,
     layout_service: LayoutService = Depends(get_layout_service),
@@ -28,20 +28,20 @@ async def create_layout(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.get("/{layout_name}", response_model=Layout)
+@router.get("/{layout}", response_model=Layout)
 async def get_layout(
-    layout_name: str,
+    layout: str,
     layout_service: LayoutService = Depends(get_layout_service),
     user: User = Depends(get_user),
 ) -> Layout:
     """레이아웃 조회"""
     try:
-        return await layout_service.get(layout_name)
+        return await layout_service.get(layout)
     except LayoutNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.get("/", response_model=List[Layout])
+@router.get("", response_model=List[Layout])
 async def list_layouts(
     layout_service: LayoutService = Depends(get_layout_service),
     user: User = Depends(get_user),
@@ -50,29 +50,29 @@ async def list_layouts(
     return await layout_service.list()
 
 
-@router.put("/{layout_name}", response_model=Layout)
+@router.put("/{layout}", response_model=Layout)
 async def update_layout(
-    layout_name: str,
+    layout: str,
     layout_update: LayoutUpdate,
     layout_service: LayoutService = Depends(get_layout_service),
     user: User = Depends(get_user),
 ) -> Layout:
     """레이아웃 수정"""
     try:
-        return await layout_service.update(user, layout_name, layout_update)
+        return await layout_service.update(user, layout, layout_update)
     except LayoutNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.delete("/{layout_name}")
+@router.delete("/{layout}")
 async def delete_layout(
-    layout_name: str,
+    layout: str,
     layout_service: LayoutService = Depends(get_layout_service),
     user: User = Depends(get_user),
 ) -> JSONResponse:
     """레이아웃 삭제"""
     try:
-        await layout_service.delete(user, layout_name)
+        await layout_service.delete(user, layout)
         return JSONResponse(status_code=204, content={"message": "Layout deleted successfully"})
     except LayoutNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
