@@ -26,17 +26,35 @@ class LayoutParser:
         self.env = temply_env
         self.nodes: dict[str, LayoutMetaData] = {}
         self._initialized = False
-        self._init_task = asyncio.create_task(self._initialize())
+        self._init_task = None
+
+        # 초기화 시작
+        try:
+            # FastAPI 환경에서 실행 중인 경우
+            loop = asyncio.get_running_loop()
+            self._init_task = asyncio.create_task(self._initialize())
+        except RuntimeError:
+            # 테스트 환경에서 실행 중인 경우
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(self._initialize())
+            finally:
+                loop.close()
 
     async def _initialize(self):
         """초기화 작업을 수행합니다."""
-        await self._build_layout_tree(await self._parse_layout_files())
-        self._initialized = True
+        if not self._initialized:
+            await self._build_layout_tree(await self._parse_layout_files())
+            self._initialized = True
 
     async def _ensure_initialized(self):
         """초기화가 완료될 때까지 기다립니다."""
         if not self._initialized:
-            await self._init_task
+            if self._init_task is not None:
+                await self._init_task
+            else:
+                await self._initialize()
 
     async def _parse_layout(self, layout_name: str) -> LayoutMetaData:
         """Parse a layout template.

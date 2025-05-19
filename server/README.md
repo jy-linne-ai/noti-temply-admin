@@ -52,14 +52,14 @@ poetry run mypy .
 
 ```bash
 # 서버 실행
-poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+poetry run uvicorn main:create_app --reload --factory
 ```
 
 ### 프로덕션 모드
 
 ```bash
 # 서버 실행
-poetry run uvicorn main:app --host 0.0.0.0 --port 8000
+poetry run python main.py --host 0.0.0.0 --port 8000
 ```
 
 ## API 문서

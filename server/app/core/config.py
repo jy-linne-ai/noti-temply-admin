@@ -4,6 +4,7 @@
 
 import json
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -13,7 +14,9 @@ class Config:
 
     def __init__(self) -> None:
         # .env 파일 로드
-        load_dotenv()
+        env_path = Path(__file__).parents[2] / ".env"
+        load_dotenv(env_path)
+
         # 서버 설정
         self.host = os.getenv("HOST", "0.0.0.0")
         self.port = int(os.getenv("PORT", "8000"))
