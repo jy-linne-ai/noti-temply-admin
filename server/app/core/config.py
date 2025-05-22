@@ -2,33 +2,44 @@
 서버 설정
 """
 
-import json
-import os
-from pathlib import Path
+from typing import List
 
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings
 
 
-class Config:
+class Config(BaseSettings):
     """서버 설정"""
 
-    def __init__(self) -> None:
-        # .env 파일 로드
-        env_path = Path(__file__).parents[2] / ".env"
-        load_dotenv(env_path)
+    # 서버 설정
+    api_host: str = "0.0.0.0"
+    api_port: int = 8000
+    api_debug: bool = False
+    env: str = "dev"
+    dev_envs: str = "dev,bx"  # 쉼표로 구분된 문자열로 받음
+    cors_origins: str = "http://localhost:3000"  # 쉼표로 구분된 문자열로 받음
 
-        # 서버 설정
-        self.host = os.getenv("HOST", "0.0.0.0")
-        self.port = int(os.getenv("PORT", "8000"))
-        self.debug = os.getenv("DEBUG", "true").lower() == "true"
+    # 파일 설정
+    file_encoding: str = "utf-8"
+    noti_temply_dir: str = "noti-temply"
 
-        # CORS 설정
-        self.cors_origins = json.loads(os.getenv("CORS_ORIGINS", '["http://localhost:3000"]'))
+    def is_local(self) -> bool:
+        """로컬 환경 여부"""
+        return self.env == "local"
 
-        # 파일 설정
-        self.file_encoding = "utf-8"
+    def is_dev(self) -> bool:
+        """개발 환경 여부"""
+        return self.env in self.dev_envs.split(",")
 
-        self.noti_temply_dir: str = os.getenv("NOTI_TEMPLY_DIR", "noti-temply")
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """CORS origins 리스트"""
+        return self.cors_origins.split(",")
+
+    class Config:
+        """설정"""
+
+        env_file = ".env"
+        env_parse_array_values = True  # 쉼표로 구분된 문자열을 리스트로 자동 변환
 
 
 CONFIG = Config()

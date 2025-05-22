@@ -190,13 +190,13 @@ async def test_partial_parser_parse_partial(temp_env):
     partial_name = "test_partial"
     partial_path = temp_env.partials_dir / partial_name
     partial_content = (
-        temp_env.make_meta_jinja_format(
+        temp_env.format_meta_block(
             BaseMetaData(
                 description="test partial",
             )
         )
         + "\n"
-        + temp_env.make_partial_body_jinja_format("test content")
+        + temp_env.format_partial_content("test content")
     )
     partial_path.write_text(partial_content, encoding=temp_env.file_encoding)
 
@@ -216,24 +216,24 @@ async def test_partial_parser_build_dependency_tree(temp_env):
 
     # 테스트 파셜들 생성
     parent_content = (
-        temp_env.make_meta_jinja_format(
+        temp_env.format_meta_block(
             BaseMetaData(
                 description="parent partial",
             )
         )
         + "\n"
-        + temp_env.make_partial_body_jinja_format("parent content")
+        + temp_env.format_partial_content("parent content")
     )
     child_content = (
-        temp_env.make_meta_jinja_format(
+        temp_env.format_meta_block(
             BaseMetaData(
                 description="child partial",
             )
         )
         + "\n"
-        + "\n".join(temp_env.make_partials_jinja_format({"parent_partial"}))
+        + "\n".join(temp_env.format_partial_imports({"parent_partial"}))
         + "\n"
-        + temp_env.make_partial_body_jinja_format("child content")
+        + temp_env.format_partial_content("child content")
     )
 
     parent_path = temp_env.partials_dir / "parent_partial"

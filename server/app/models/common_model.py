@@ -22,3 +22,8 @@ class Meta(BaseModel):
     created_by: Optional[str] = Field(None, description="생성자")
     updated_at: Optional[datetime] = Field(None, description="수정 시간")
     updated_by: Optional[str] = Field(None, description="수정자")
+
+
+class VersionInfo(BaseModel):
+    version: str
+    is_root: bool = False

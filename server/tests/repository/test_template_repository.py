@@ -12,7 +12,7 @@ from app.core.temply.temply_env import TemplateItems, TemplyEnv
 from app.models.common_model import User
 from app.models.layout_model import LayoutCreate
 from app.models.partial_model import PartialCreate
-from app.models.template_model import TemplateCreate, TemplateUpdate
+from app.models.template_model import TemplateComponentCreate, TemplateComponentUpdate
 from app.repositories.layout_repository import LayoutRepository
 from app.repositories.partial_repository import PartialRepository
 from app.repositories.template_repository import TemplateRepository
@@ -39,42 +39,43 @@ async def test_template_repository(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    category = "test"
-    create_template = await template_repository.create(user, category, template_create)
-    assert create_template.layout == create_layout.name
-    assert create_template.partials == [create_partial.name]
-    assert create_template.content == template_create.content
-    assert create_template.description == template_create.description
-    assert create_template.name == template_create.name
-    assert create_template.category == category
-    assert create_template.updated_at is not None
-    assert create_template.updated_by == user.name
-    assert create_template.created_at is not None
-    assert create_template.created_by == user.name
+    template = "test"
+    create_component = await template_repository.create_component(user, template, component_create)
+    assert create_component.layout == create_layout.name
+    assert create_component.partials == [create_partial.name]
+    assert create_component.content == component_create.content
+    assert create_component.description == component_create.description
+    assert create_component.template == template
+    assert create_component.component == component_create.component
+    assert create_component.updated_at is not None
+    assert create_component.updated_by == user.name
+    assert create_component.created_at is not None
+    assert create_component.created_by == user.name
 
-    load_content, _, _ = temp_env.get_source_template(
-        create_template.category, create_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        create_component.template, create_component.component
     )
-    assert temp_env.make_layout_jinja_format(create_template.layout) in load_content
+    assert temp_env.format_layout_block(create_component.layout) in load_content
     assert (
-        "\n".join(temp_env.make_partials_jinja_format(set(create_template.partials)))
-        in load_content
+        "\n".join(temp_env.format_partial_imports(set(create_component.partials))) in load_content
     )
-    assert create_template.content in load_content
+    assert create_component.content in load_content
 
-    get_template = await template_repository.get(create_template.category, create_template.name)
-    assert get_template.layout == create_template.layout
-    assert get_template.partials == create_template.partials
-    assert get_template.content == create_template.content
-    assert get_template.description == create_template.description
-    assert get_template.name == create_template.name
+    get_component = await template_repository.get_component(
+        create_component.template, create_component.component
+    )
+    assert get_component.layout == create_component.layout
+    assert get_component.partials == create_component.partials
+    assert get_component.content == create_component.content
+    assert get_component.description == create_component.description
+    assert get_component.template == create_component.template
 
 
 @pytest.mark.asyncio
@@ -98,17 +99,17 @@ async def test_template_duplicate(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    await template_repository.create(user, category, template_create)
+    await template_repository.create_component(user, template, component_create)
     with pytest.raises(TemplateAlreadyExistsError):
-        await template_repository.create(user, category, template_create)
+        await template_repository.create_component(user, template, component_create)
 
 
 @pytest.mark.asyncio
@@ -116,7 +117,7 @@ async def test_template_not_found(temp_env: TemplyEnv):
     """존재하지 않는 템플릿 조회 테스트"""
     template_repository = TemplateRepository(temp_env)
     with pytest.raises(TemplateNotFoundError):
-        await template_repository.get("non_existent_category", "non_existent_template")
+        await template_repository.get_component("non_existent_template", "non_existent_component")
 
 
 @pytest.mark.asyncio
@@ -140,36 +141,36 @@ async def test_template_update(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
+    create_component = await template_repository.create_component(user, template, component_create)
 
     # 업데이트
     update_content = "updated content"
     update_description = "updated description"
-    update_template = await template_repository.update(
+    update_component = await template_repository.update_component(
         user,
-        create_template.category,
-        create_template.name,
-        TemplateUpdate(
+        create_component.template,
+        create_component.component,
+        TemplateComponentUpdate(
             content=update_content,
             description=update_description,
             layout=create_layout.name,
             partials=[create_partial.name],
         ),
     )
-    assert update_template.content == update_content
-    assert update_template.description == update_description
-    assert update_template.created_at == create_template.created_at
-    assert update_template.created_by == create_template.created_by
-    assert update_template.updated_at is not None
-    assert update_template.updated_by == user.name
+    assert update_component.content == update_content
+    assert update_component.description == update_description
+    assert update_component.created_at == create_component.created_at
+    assert update_component.created_by == create_component.created_by
+    assert update_component.updated_at is not None
+    assert update_component.updated_by == user.name
 
 
 @pytest.mark.asyncio
@@ -207,12 +208,12 @@ async def test_template_invalid_name(temp_env: TemplyEnv, user: User):
 
     for invalid_name in invalid_names:
         with pytest.raises(ValueError):
-            category = "test"
-            await template_repository.create(
+            template = "test"
+            await template_repository.create_component(
                 user,
-                category,
-                TemplateCreate(
-                    name=invalid_name,
+                template,
+                TemplateComponentCreate(
+                    component=invalid_name,
                     description="test description",
                     layout=create_layout.name,
                     partials=[create_partial.name],
@@ -242,22 +243,26 @@ async def test_template_delete(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
+    create_component = await template_repository.create_component(user, template, component_create)
 
     # 삭제
-    await template_repository.delete(user, create_template.category, create_template.name)
+    await template_repository.delete_component(
+        user, create_component.template, create_component.component
+    )
 
     # 삭제 확인
     with pytest.raises(TemplateNotFoundError):
-        await template_repository.get(create_template.category, create_template.name)
+        await template_repository.get_component(
+            create_component.template, create_component.component
+        )
 
 
 @pytest.mark.asyncio
@@ -284,26 +289,28 @@ async def test_template_with_multiple_partials(temp_env: TemplyEnv, user: User):
         partials.append(await partial_repository.create(user, partial_create))
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[p.name for p in partials],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
+    create_component = await template_repository.create_component(user, template, component_create)
 
     # 생성된 템플릿 검증
-    get_template = await template_repository.get(create_template.category, create_template.name)
-    assert get_template.partials is not None
-    assert len(get_template.partials) == len(partials)
+    get_component = await template_repository.get_component(
+        create_component.template, create_component.component
+    )
+    assert get_component.partials is not None
+    assert len(get_component.partials) == len(partials)
     for partial in partials:
-        assert partial.name in get_template.partials
+        assert partial.name in get_component.partials
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        create_template.category, create_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        create_component.template, create_component.component
     )
     for partial in partials:
         assert (
@@ -347,25 +354,27 @@ async def test_template_with_nested_partials(temp_env: TemplyEnv, user: User):
     )
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[base_partial.name, dependent_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
+    create_component = await template_repository.create_component(user, template, component_create)
 
     # 생성된 템플릿 검증
-    get_template = await template_repository.get(create_template.category, create_template.name)
-    assert get_template.partials is not None
-    assert base_partial.name in get_template.partials
-    assert dependent_partial.name in get_template.partials
+    get_component = await template_repository.get_component(
+        create_component.template, create_component.component
+    )
+    assert get_component.partials is not None
+    assert base_partial.name in get_component.partials
+    assert dependent_partial.name in get_component.partials
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        create_template.category, create_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        create_component.template, create_component.component
     )
     assert (
         f"{{%- from 'partials/{base_partial.name}' import render as partials_{base_partial.name} with context -%}}"
@@ -381,26 +390,26 @@ async def test_template_with_nested_partials(temp_env: TemplyEnv, user: User):
 async def test_template_without_layout_and_partials(temp_env: TemplyEnv, user: User):
     """레이아웃과 파셜이 없는 템플릿 생성 테스트"""
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=None,
         partials=[],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
-    assert create_template.layout == ""  # None 대신 빈 문자열로 처리
-    assert create_template.partials == []
-    assert create_template.content == template_create.content
+    create_component = await template_repository.create_component(user, template, component_create)
+    assert create_component.layout == ""  # None 대신 빈 문자열로 처리
+    assert create_component.partials == []
+    assert create_component.content == component_create.content
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        create_template.category, create_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        create_component.template, create_component.component
     )
     assert "{%- extends" not in load_content
     assert "{%- from 'partials/" not in load_content
-    assert create_template.content in load_content
+    assert create_component.content in load_content
 
 
 @pytest.mark.asyncio
@@ -416,29 +425,29 @@ async def test_template_without_layout(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=None,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
-    assert create_template.layout == ""  # None 대신 빈 문자열로 처리
-    assert create_template.partials == [create_partial.name]
-    assert create_template.content == template_create.content
+    create_component = await template_repository.create_component(user, template, component_create)
+    assert create_component.layout == ""  # None 대신 빈 문자열로 처리
+    assert create_component.partials == [create_partial.name]
+    assert create_component.content == component_create.content
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        create_template.category, create_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        create_component.template, create_component.component
     )
     assert "{%- extends" not in load_content
     assert (
         f"{{%- from 'partials/{create_partial.name}' import render as partials_{create_partial.name} with context -%}}"
         in load_content
     )
-    assert create_template.content in load_content
+    assert create_component.content in load_content
 
 
 @pytest.mark.asyncio
@@ -453,26 +462,26 @@ async def test_template_without_partials(temp_env: TemplyEnv, user: User):
     create_layout = await layout_repository.create(user, layout_create)
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
-    assert create_template.layout == create_layout.name
-    assert create_template.partials == []
-    assert create_template.content == template_create.content
+    create_component = await template_repository.create_component(user, template, component_create)
+    assert create_component.layout == create_layout.name
+    assert create_component.partials == []
+    assert create_component.content == component_create.content
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        create_template.category, create_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        create_component.template, create_component.component
     )
-    assert temp_env.make_layout_jinja_format(create_template.layout) in load_content
+    assert temp_env.format_layout_block(create_component.layout) in load_content
     assert "{%- from 'partials/" not in load_content
-    assert create_template.content in load_content
+    assert create_component.content in load_content
 
 
 @pytest.mark.asyncio
@@ -496,29 +505,29 @@ async def test_template_with_single_partial(temp_env: TemplyEnv, user: User):
     create_partial = await partial_repository.create(user, partial_create)
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
-    assert create_template.layout == create_layout.name
-    assert create_template.partials == [create_partial.name]
-    assert create_template.content == template_create.content
+    create_component = await template_repository.create_component(user, template, component_create)
+    assert create_component.layout == create_layout.name
+    assert create_component.partials == [create_partial.name]
+    assert create_component.content == component_create.content
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        create_template.category, create_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        create_component.template, create_component.component
     )
-    assert temp_env.make_layout_jinja_format(create_template.layout) in load_content
+    assert temp_env.format_layout_block(create_component.layout) in load_content
     assert (
         f"{{%- from 'partials/{create_partial.name}' import render as partials_{create_partial.name} with context -%}}"
         in load_content
     )
-    assert create_template.content in load_content
+    assert create_component.content in load_content
 
 
 @pytest.mark.asyncio
@@ -545,33 +554,33 @@ async def test_template_with_two_partials(temp_env: TemplyEnv, user: User):
         partials.append(await partial_repository.create(user, partial_create))
 
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template_create = TemplateCreate(
-        name=TemplateItems.HTML_EMAIL.value,
+    template = "test"
+    component_create = TemplateComponentCreate(
+        component=TemplateItems.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[p.name for p in partials],
         content="test content",
     )
-    create_template = await template_repository.create(user, category, template_create)
-    assert create_template.layout == create_layout.name
-    assert create_template.partials is not None
-    assert len(create_template.partials) == 2
+    create_component = await template_repository.create_component(user, template, component_create)
+    assert create_component.layout == create_layout.name
+    assert create_component.partials is not None
+    assert len(create_component.partials) == 2
     for partial in partials:
-        assert partial.name in create_template.partials
-    assert create_template.content == template_create.content
+        assert partial.name in create_component.partials
+    assert create_component.content == component_create.content
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        create_template.category, create_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        create_component.template, create_component.component
     )
-    assert temp_env.make_layout_jinja_format(create_template.layout) in load_content
+    assert temp_env.format_layout_block(create_component.layout) in load_content
     for partial in partials:
         assert (
             f"{{%- from 'partials/{partial.name}' import render as partials_{partial.name} with context -%}}"
             in load_content
         )
-    assert create_template.content in load_content
+    assert create_component.content in load_content
 
 
 @pytest.mark.asyncio
@@ -613,12 +622,12 @@ async def test_template_update_layout(temp_env: TemplyEnv, user: User):
 
     # 템플릿 생성
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template = await template_repository.create(
+    template = "test"
+    created_component = await template_repository.create_component(
         user,
-        category,
-        TemplateCreate(
-            name=TemplateItems.HTML_EMAIL.value,
+        template,
+        TemplateComponentCreate(
+            component=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=old_layout.name,
             partials=[partial.name],
@@ -627,27 +636,27 @@ async def test_template_update_layout(temp_env: TemplyEnv, user: User):
     )
 
     # 레이아웃 변경
-    updated_template = await template_repository.update(
+    updated_component = await template_repository.update_component(
         user,
-        template.category,
-        template.name,
-        TemplateUpdate(
-            content=template.content,
-            description=template.description,
+        template,
+        created_component.component,
+        TemplateComponentUpdate(
+            content=created_component.content,
+            description=created_component.description,
             layout=new_layout.name,
-            partials=template.partials,
+            partials=created_component.partials,
         ),
     )
 
-    assert updated_template.layout == new_layout.name
-    assert updated_template.content == template.content
-    assert updated_template.partials == template.partials
+    assert updated_component.layout == new_layout.name
+    assert updated_component.content == created_component.content
+    assert updated_component.partials == created_component.partials
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        updated_template.category, updated_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        updated_component.template, updated_component.component
     )
-    assert temp_env.make_layout_jinja_format(new_layout.name) in load_content
+    assert temp_env.format_layout_block(new_layout.name) in load_content
 
 
 @pytest.mark.asyncio
@@ -696,12 +705,12 @@ async def test_template_update_partials(temp_env: TemplyEnv, user: User):
 
     # 템플릿 생성
     template_repository = TemplateRepository(temp_env)
-    category = "test"
-    template = await template_repository.create(
+    template = "test"
+    created_component = await template_repository.create_component(
         user,
-        category,
-        TemplateCreate(
-            name=TemplateItems.HTML_EMAIL.value,
+        template,
+        TemplateComponentCreate(
+            component=TemplateItems.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
             partials=[p.name for p in old_partials],
@@ -710,25 +719,25 @@ async def test_template_update_partials(temp_env: TemplyEnv, user: User):
     )
 
     # 파셜 변경
-    updated_template = await template_repository.update(
+    updated_component = await template_repository.update_component(
         user,
-        template.category,
-        template.name,
-        TemplateUpdate(
-            content=template.content,
-            description=template.description,
+        template,
+        created_component.component,
+        TemplateComponentUpdate(
+            content=created_component.content,
+            description=created_component.description,
             layout=layout.name,
             partials=[p.name for p in new_partials],
         ),
     )
 
-    assert updated_template.layout == layout.name
-    assert updated_template.content == template.content
-    assert set(updated_template.partials or []) == {p.name for p in new_partials}
+    assert updated_component.layout == layout.name
+    assert updated_component.content == created_component.content
+    assert set(updated_component.partials or []) == {p.name for p in new_partials}
 
     # 파일 내용 검증
-    load_content, _, _ = temp_env.get_source_template(
-        updated_template.category, updated_template.name
+    load_content, _, _ = temp_env.load_component_source(
+        updated_component.template, updated_component.component
     )
     for partial in new_partials:
         assert (
@@ -753,12 +762,12 @@ async def test_template_nonexistent_layout(temp_env: TemplyEnv, user: User):
 
     template_repository = TemplateRepository(temp_env)
     with pytest.raises(LayoutNotFoundError):
-        category = "test"
-        await template_repository.create(
+        template = "test"
+        await template_repository.create_component(
             user,
-            category,
-            TemplateCreate(
-                name=TemplateItems.HTML_EMAIL.value,
+            template,
+            TemplateComponentCreate(
+                component=TemplateItems.HTML_EMAIL.value,
                 description="test description",
                 layout="nonexistent_layout",
                 partials=[partial.name],
@@ -782,12 +791,12 @@ async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
 
     template_repository = TemplateRepository(temp_env)
     with pytest.raises(PartialNotFoundError):
-        category = "test"
-        await template_repository.create(
+        template = "test"
+        await template_repository.create_component(
             user,
-            category,
-            TemplateCreate(
-                name=TemplateItems.HTML_EMAIL.value,
+            template,
+            TemplateComponentCreate(
+                component=TemplateItems.HTML_EMAIL.value,
                 description="test description",
                 layout=layout.name,
                 partials=["nonexistent_partial"],
@@ -797,14 +806,14 @@ async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_repository_get_categories(temp_env: TemplyEnv, user: User):
-    """카테고리 목록 조회 테스트"""
+async def test_template_repository_get_templates(temp_env: TemplyEnv, user: User):
+    """템플릿 목록 조회 테스트"""
 
     template_repository = TemplateRepository(temp_env)
-    category = "test_category"
+    template = "test"
     template_name = TemplateItems.HTML_EMAIL.value
-    template_create = TemplateCreate(
-        name=template_name,
+    component_create = TemplateComponentCreate(
+        component=template_name,
         content="test content",
         description="test description",
         layout=None,
@@ -812,22 +821,22 @@ async def test_template_repository_get_categories(temp_env: TemplyEnv, user: Use
     )
 
     # 템플릿 생성
-    await template_repository.create(user, category, template_create)
+    await template_repository.create_component(user, template, component_create)
 
-    # 카테고리 목록 조회
-    categories = await template_repository.get_categories()
-    assert category in categories
+    # 템플릿 목록 조회
+    templates = await template_repository.get_template_names()
+    assert template in templates
 
 
 @pytest.mark.asyncio
-async def test_template_repository_get_templates_by_category(temp_env: TemplyEnv, user: User):
-    """카테고리별 템플릿 목록 조회 테스트"""
+async def test_template_repository_get_components_by_template(temp_env: TemplyEnv, user: User):
+    """템플릿 목록 조회 테스트"""
 
     template_repository = TemplateRepository(temp_env)
-    category = "test_category"
+    template = "test"
     template_name = TemplateItems.HTML_EMAIL.value
-    template_create = TemplateCreate(
-        name=template_name,
+    component_create = TemplateComponentCreate(
+        component=template_name,
         content="test content",
         description="test description",
         layout=None,
@@ -835,24 +844,24 @@ async def test_template_repository_get_templates_by_category(temp_env: TemplyEnv
     )
 
     # 템플릿 생성
-    await template_repository.create(user, category, template_create)
+    await template_repository.create_component(user, template, component_create)
 
-    # 카테고리별 템플릿 목록 조회
-    templates = await template_repository.get_templates(category)
-    assert len(templates) == 1
-    assert templates[0].name == template_name
-    assert templates[0].category == category
+    # 템플릿별 템플릿 목록 조회
+    components = await template_repository.get_components_by_template(template)
+    assert len(components) == 1
+    assert components[0].component == template_name
+    assert components[0].template == template
 
 
 @pytest.mark.asyncio
-async def test_template_repository_delete_templates_by_category(temp_env: TemplyEnv, user: User):
-    """카테고리별 템플릿 삭제 테스트"""
+async def test_template_repository_delete_component_by_template(temp_env: TemplyEnv, user: User):
+    """템플릿별 템플릿 삭제 테스트"""
 
     template_repository = TemplateRepository(temp_env)
-    category = "test_category"
+    template = "test"
     template_name = TemplateItems.HTML_EMAIL.value
-    template_create = TemplateCreate(
-        name=template_name,
+    component_create = TemplateComponentCreate(
+        component=template_name,
         content="test content",
         description="test description",
         layout=None,
@@ -860,15 +869,15 @@ async def test_template_repository_delete_templates_by_category(temp_env: Temply
     )
 
     # 템플릿 생성
-    await template_repository.create(user, category, template_create)
+    await template_repository.create_component(user, template, component_create)
 
-    # 카테고리별 템플릿 삭제
-    await template_repository.delete_templates(user, category)
+    # 템플릿별 템플릿 삭제
+    await template_repository.delete_component(user, template, template_name)
 
     # 템플릿이 삭제되었는지 확인
     with pytest.raises(TemplateNotFoundError):
-        await template_repository.get(category, template_name)
+        await template_repository.get_component(template, template_name)
 
-    # 카테고리별 템플릿 목록이 비어있는지 확인
-    templates = await template_repository.get_templates(category)
-    assert len(templates) == 0
+    # 템플릿별 템플릿 목록이 비어있는지 확인
+    components = await template_repository.get_components_by_template(template)
+    assert len(components) == 0

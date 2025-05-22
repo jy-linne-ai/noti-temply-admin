@@ -106,7 +106,7 @@ class PartialParser:
             PartialMetaData: Parsed partial metadata
         """
         try:
-            content, _, _ = self.env.get_source_partial(partial_name)
+            content, _, _ = self.env.load_partial_source(partial_name)
             meta, block = MetaParser.parse(content)
             dependencies, block = await self._extract_dependencies(block)
             block = await self._remove_macro_wrapper(block)
@@ -332,13 +332,13 @@ class PartialParser:
         await self._check_circular_dependency(partial_name, dependencies)
 
         with open(self.env.partials_dir / partial_name, "w", encoding=self.env.file_encoding) as f:
-            f.write(self.env.make_meta_jinja_format(meta))
+            f.write(self.env.format_meta_block(meta))
             if dependencies:
-                for dep in self.env.make_partials_jinja_format(dependencies):
+                for dep in self.env.format_partial_imports(dependencies):
                     f.write("\n")
                     f.write(dep)
             f.write("\n")
-            f.write(self.env.make_partial_body_jinja_format(content))
+            f.write(self.env.format_partial_content(content))
             f.write("\n")
 
     async def create(
@@ -361,7 +361,7 @@ class PartialParser:
         await self._ensure_initialized()
         self._initialized = False
         try:
-            if not self.env.check_file_name(partial_name):
+            if not self.env.validate_template_name(partial_name):
                 raise ValueError(f"Invalid partial name: {partial_name}")
 
             if partial_name in self.nodes:

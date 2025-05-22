@@ -3,7 +3,11 @@
 from typing import List
 
 from app.models.common_model import User
-from app.models.template_model import Template, TemplateCreate, TemplateUpdate
+from app.models.template_model import (
+    TemplateComponent,
+    TemplateComponentCreate,
+    TemplateComponentUpdate,
+)
 from app.repositories.template_repository import TemplateRepository
 
 
@@ -14,36 +18,46 @@ class TemplateService:
         """Initialize"""
         self.repository = repository
 
-    async def create(self, user: User, category_name: str, template: TemplateCreate) -> Template:
+    async def create_component(
+        self, user: User, template: str, component_create: TemplateComponentCreate
+    ) -> TemplateComponent:
         """Create Template"""
-        return await self.repository.create(user, category_name, template)
+        return await self.repository.create_component(user, template, component_create)
 
-    async def get(self, category_name: str, template_name: str) -> Template:
+    async def get_component(self, template: str, component: str) -> TemplateComponent:
         """Get Template"""
-        return await self.repository.get(category_name, template_name)
+        return await self.repository.get_component(template, component)
 
-    async def list(self) -> List[Template]:
-        """List Templates"""
-        return await self.repository.list()
+    async def get_components(self) -> List[TemplateComponent]:
+        """List Components"""
+        return await self.repository.get_components()
 
-    async def update(
-        self, user: User, category_name: str, template_name: str, template: TemplateUpdate
-    ) -> Template:
+    async def update_component(
+        self,
+        user: User,
+        template: str,
+        component: str,
+        component_update: TemplateComponentUpdate,
+    ) -> TemplateComponent:
         """Update Template"""
-        return await self.repository.update(user, category_name, template_name, template)
+        return await self.repository.update_component(user, template, component, component_update)
 
-    async def delete(self, user: User, category_name: str, template_name: str) -> None:
-        """Delete Template"""
-        return await self.repository.delete(user, category_name, template_name)
+    async def delete_component(self, user: User, template: str, component: str) -> None:
+        """Delete Component"""
+        return await self.repository.delete_component(user, template, component)
 
-    async def get_categories(self) -> List[str]:
-        """Get Categories"""
-        return await self.repository.get_categories()
+    async def get_template_names(self) -> List[str]:
+        """Get Template Names"""
+        return await self.repository.get_template_names()
 
-    async def get_templates(self, category_name: str) -> List[Template]:
-        """Get Templates"""
-        return await self.repository.get_templates(category_name)
+    async def get_components_by_template(self, template: str) -> List[TemplateComponent]:
+        """Get Components by Template"""
+        return await self.repository.get_components_by_template(template)
 
-    async def delete_templates(self, user: User, category_name: str) -> None:
-        """Delete Templates by Category"""
-        return await self.repository.delete_templates(user, category_name)
+    async def get_component_names_by_template(self, template: str) -> List[str]:
+        """Get Component Names by Template"""
+        return await self.repository.get_component_names_by_template(template)
+
+    async def delete_components_by_template(self, user: User, template: str) -> None:
+        """Delete Components by Template"""
+        return await self.repository.delete_components_by_template(user, template)

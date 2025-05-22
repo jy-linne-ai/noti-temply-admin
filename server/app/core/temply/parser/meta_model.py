@@ -101,11 +101,11 @@ class PartialMetaData(BaseMetaData):
 
 
 @dataclass
-class TemplateMetaData(BaseMetaData):
+class TemplateComponentMetaData(BaseMetaData):
     """템플릿 메타데이터를 저장하는 클래스"""
 
-    category: str = ""
-    name: str = ""
+    template: str = ""
+    component: str = ""
     content: str = ""
     layout: Optional[str] = None
     partials: List[str] = None  # type: ignore

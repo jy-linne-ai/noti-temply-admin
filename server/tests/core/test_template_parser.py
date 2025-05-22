@@ -17,16 +17,18 @@ from app.models.common_model import User
 async def test_template_parser_with_layout(data_env):
     """레이아웃이 있는 템플릿 파서 테스트"""
     parser = TemplateParser(data_env)
-    templates = await parser.get_templates()
-    assert any(template.layout for template in templates), "레이아웃이 있는 템플릿이 있어야 합니다"
+    components = await parser.get_components()
+    assert any(
+        component.layout for component in components
+    ), "레이아웃이 있는 템플릿이 있어야 합니다"
 
 
 @pytest.mark.asyncio
 async def test_template_parser_with_partials(data_env):
     """파셜이 있는 템플릿 파서 테스트"""
     parser = TemplateParser(data_env)
-    templates = await parser.get_templates()
-    assert any(template.partials for template in templates), "파셜이 있는 템플릿이 있어야 합니다"
+    components = await parser.get_components()
+    assert any(component.partials for component in components), "파셜이 있는 템플릿이 있어야 합니다"
 
 
 @pytest.mark.asyncio
@@ -40,25 +42,25 @@ async def test_get_template_files(temp_env):
         """{#-\ndescription: 템플릿 테스트\ncreated_at: 2024-07-01 00:00:00\n-#}\nContent"""
     )
     parser = TemplateParser(temp_env)
-    templates = await parser.get_templates()
-    assert len(templates) == 1
-    assert templates[0].category == "test_category"
-    assert templates[0].name == "test_template.html"
-    assert templates[0].description == "템플릿 테스트"
-    assert templates[0].created_at.strftime("%Y-%m-%d %H:%M:%S") == "2024-07-01 00:00:00"
+    components = await parser.get_components()
+    assert len(components) == 1
+    assert components[0].template == "test_category"
+    assert components[0].component == "test_template.html"
+    assert components[0].description == "템플릿 테스트"
+    assert components[0].created_at.strftime("%Y-%m-%d %H:%M:%S") == "2024-07-01 00:00:00"
 
 
 @pytest.mark.asyncio
 async def test_build_template_tree(data_env):
     """Test building the template tree."""
     parser = TemplateParser(data_env)
-    templates = await parser.get_templates()
-    assert len(templates) > 0
+    components = await parser.get_components()
+    assert len(components) > 0
 
     # Check that all nodes have the correct structure
-    for node in templates:
-        assert hasattr(node, "name")
-        assert hasattr(node, "category")
+    for node in components:
+        assert hasattr(node, "template")
+        assert hasattr(node, "component")
         assert hasattr(node, "layout")
         assert hasattr(node, "partials")
 
@@ -67,7 +69,7 @@ async def test_build_template_tree(data_env):
 async def test_print_template_tree(data_env, capsys):
     """Test printing the template tree."""
     parser = TemplateParser(data_env)
-    await parser.print_template_tree()
+    await parser.print_component_tree()
     captured = capsys.readouterr()
     assert len(captured.out) > 0
     assert "└─" in captured.out
@@ -76,90 +78,95 @@ async def test_print_template_tree(data_env, capsys):
 
 
 @pytest.mark.asyncio
-async def test_template_parser_get_categories(temp_env: TemplyEnv, user: User):
-    """카테고리 목록 조회 테스트"""
-    template_parser = TemplateParser(temp_env)
-    category = "test_category"
-    template_name = TemplateItems.HTML_EMAIL.value
+async def test_template_parser_get_template_components(temp_env: TemplyEnv, user: User):
+    """템플릿 컴포넌트 목록 조회 테스트"""
+    parser = TemplateParser(temp_env)
+    template = "test_category"
+    component_name = TemplateItems.HTML_EMAIL.value
     content = "test content"
     description = "test description"
     layout = None
     partials = None
 
     # 템플릿 생성
-    await template_parser.create(
+    await parser.create_component(
         user,
-        category,
-        template_name,
+        template,
+        component_name,
         content,
         description,
         layout,
         partials,
     )
 
-    # 카테고리 목록 조회
-    categories = await template_parser.get_categories()
-    assert category in categories
+    # 템플릿 컴포넌트 목록 조회
+    components = await parser.get_components_by_template(template)
+    assert len(components) == 1
+    assert components[0].template == template
+    assert components[0].component == component_name
+    assert components[0].description == description
 
 
 @pytest.mark.asyncio
-async def test_template_parser_get_templates_by_category(temp_env: TemplyEnv, user: User):
-    """카테고리별 템플릿 목록 조회 테스트"""
-    template_parser = TemplateParser(temp_env)
-    category = "test_category"
-    template_name = TemplateItems.HTML_EMAIL.value
+async def test_template_parser_get_template_components_by_template(temp_env: TemplyEnv, user: User):
+    """템플릿별 템플릿 컴포넌트 목록 조회 테스트"""
+    parser = TemplateParser(temp_env)
+    template = "test_category"
+    component_name = TemplateItems.HTML_EMAIL.value
     content = "test content"
     description = "test description"
     layout = None
     partials = None
 
     # 템플릿 생성
-    await template_parser.create(
+    await parser.create_component(
         user,
-        category,
-        template_name,
+        template,
+        component_name,
         content,
         description,
         layout,
         partials,
     )
 
-    # 카테고리별 템플릿 목록 조회
-    templates = await template_parser.get_templates_by_category(category)
-    assert len(templates) == 1
-    assert templates[0].name == template_name
-    assert templates[0].category == category
+    # 템플릿별 템플릿 컴포넌트 목록 조회
+    components = await parser.get_components_by_template(template)
+    assert len(components) == 1
+    assert components[0].template == template
+    assert components[0].component == component_name
 
 
 @pytest.mark.asyncio
-async def test_template_parser_delete_templates_by_category(temp_env: TemplyEnv, user: User):
-    """카테고리별 템플릿 삭제 테스트"""
-    template_parser = TemplateParser(temp_env)
-    category = "test_category"
-    template_name = TemplateItems.HTML_EMAIL.value
+async def test_template_parser_delete_template_components_by_template(
+    temp_env: TemplyEnv, user: User
+):
+    """템플릿별 템플릿 컴포넌트 삭제 테스트"""
+    parser = TemplateParser(temp_env)
+    template = "test_category"
+    component_name = TemplateItems.HTML_EMAIL.value
     content = "test content"
     description = "test description"
     layout = None
     partials = None
 
     # 템플릿 생성
-    await template_parser.create(
+    await parser.create_component(
         user,
-        category,
-        template_name,
+        template,
+        component_name,
         content,
         description,
         layout,
         partials,
     )
 
-    # 카테고리별 템플릿 삭제
-    await template_parser.delete_templates(user, category)
+    # 템플릿별 템플릿 컴포넌트 삭제
+    await parser.delete_component(user, template, component_name)
 
     # 템플릿이 삭제되었는지 확인
     with pytest.raises(TemplateNotFoundError):
-        await template_parser.get_template(f"{category}/{template_name}")
+        await parser.get_component(template, component_name)
 
-    # 카테고리별 템플릿 목록이 비어있는지 확인
-    templates = await template_parser.get_templates_by_category(category)
-    assert len(templates) == 0
+    # 템플릿별 템플릿 컴포넌트 목록이 비어있는지 확인
+    components = await parser.get_components_by_template(template)
+    assert len(components) == 0

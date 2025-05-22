@@ -224,7 +224,7 @@ async def test_partial_repository_with_dependencies(temp_env: TemplyEnv, user: U
     create_partial = await partial_repository.create(user, test3_partial)
     assert create_partial.name == test3_partial.name
     assert create_partial.content == test3_partial.content
-    load_content, _, _ = temp_env.get_source_partial(test3_partial.name)
+    load_content, _, _ = temp_env.load_partial_source(test3_partial.name)
     print(load_content)
     assert (
         "{%- from 'partials/test' import render as partials_test with context -%}" in load_content

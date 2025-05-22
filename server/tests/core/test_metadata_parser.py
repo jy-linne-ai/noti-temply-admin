@@ -61,7 +61,7 @@ created_by: user1
 updated_at: 2024-03-22 12:00:00
 updated_by: user2
 -#}"""
-    assert temp_env.make_meta_jinja_format(meta) == expected
+    assert temp_env.format_meta_block(meta) == expected
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ created_by:
 updated_at: 
 updated_by: 
 -#}"""
-    assert temp_env.make_meta_jinja_format(meta) == expected
+    assert temp_env.format_meta_block(meta) == expected
 
 
 @pytest.mark.asyncio
@@ -93,7 +93,7 @@ created_by:
 updated_at: 
 updated_by: 
 -#}"""
-    assert temp_env.make_meta_jinja_format(meta) == expected
+    assert temp_env.format_meta_block(meta) == expected
 
 
 @pytest.mark.asyncio

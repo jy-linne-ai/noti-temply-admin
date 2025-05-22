@@ -27,8 +27,8 @@ def get_base_path() -> Path:
 
 
 @pytest.mark.asyncio
-def template_category_names() -> List[str]:
-    """템플릿 카테고리 이름 추출"""
+def template_names() -> List[str]:
+    """템플릿 이름 추출"""
     base_path = get_base_path()
     match_template_files = []
     for file_path in (base_path / "templates").iterdir():
@@ -41,28 +41,28 @@ def template_category_names() -> List[str]:
 
 
 @pytest.mark.asyncio
-def _get_template_item_names(root_path: Path, template_dir_name: str) -> List[str]:
+def _get_template_item_names(root_path: Path, template_name: str) -> List[str]:
     """템플릿 이름 추출"""
     match_template_files = []
-    template_path = root_path / "templates" / template_dir_name
+    template_path = root_path / "templates" / template_name
     # print(root_path)
     # print(template_path)
     for file_path in template_path.iterdir():
         if file_path.is_dir() or file_path.name.endswith(".json") or file_path.name.startswith("."):
             continue
-        match_template_files.append(f"templates/{template_dir_name}/{file_path.name}")
+        match_template_files.append(f"templates/{template_name}/{file_path.name}")
     return match_template_files
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("template_category_name", template_category_names())
+@pytest.mark.parametrize("template_name", template_names())
 # pylint: disable=redefined-outer-name
-def test_schema_equal(data_env, template_category_name):
+def test_schema_equal(data_env, template_name):
     """모든 템플릿 파싱 테스트"""
     base_path = get_base_path()
     # template_name = "arrangement_mailer"
     # template_name = "arrangement_mailer:receive_message"
-    match_template_files = _get_template_item_names(base_path, template_category_name)
+    match_template_files = _get_template_item_names(base_path, template_name)
     params = Dictionary()
 
     for template_file_path in match_template_files:
@@ -76,19 +76,19 @@ def test_schema_equal(data_env, template_category_name):
     json_schema = to_json_schema(params)
 
     # 파싱된 결과를 schema-test.json으로 저장
-    test_schema_path = base_path / "templates" / template_category_name / "schema-test.json"
+    test_schema_path = base_path / "templates" / template_name / "schema-test.json"
     with open(test_schema_path, "w", encoding="utf-8") as f:
         json.dump(json_schema, f, indent=2, ensure_ascii=False)
 
     # 기대 스키마 로드
-    schema_path = base_path / "templates" / template_category_name / "schema.json"
+    schema_path = base_path / "templates" / template_name / "schema.json"
     with open(schema_path, "r", encoding="utf-8") as f:
         expected_schema = json.load(f)
 
     expected_keys = set(expected_schema["properties"].keys())
     actual_keys = set(json_schema["properties"].keys())
 
-    print(f"\n=== {template_category_name} 전체 템플릿 변수 차이 분석 ===")
+    print(f"\n=== {template_name} 전체 템플릿 변수 차이 분석 ===")
     print("실제 결과(parsed)에만 있는 변수:", actual_keys - expected_keys)
     print("기대 결과(expected)에만 있는 변수:", expected_keys - actual_keys)
     print("공통 변수:", actual_keys & expected_keys)
@@ -172,12 +172,12 @@ def test_get_mode_title():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("template_category_name", template_category_names())
+@pytest.mark.parametrize("template_name", template_names())
 # pylint: disable=redefined-outer-name
-def test_schema_validate_with_random_data(template_category_name):
+def test_schema_validate_with_random_data(template_name):
     """템플릿 스키마 검증 테스트"""
     base_path = get_base_path()
-    schema_path = base_path / "templates" / template_category_name / "schema.json"
+    schema_path = base_path / "templates" / template_name / "schema.json"
     with open(schema_path, "r", encoding="utf-8") as f:
         schema = json.load(f)
 
@@ -189,11 +189,11 @@ def test_schema_validate_with_random_data(template_category_name):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("template_category_name", template_category_names())
-def test_parse_content(data_env, template_category_name):
+@pytest.mark.parametrize("template", template_names())
+def test_parse_content(data_env, template):
     """템플릿 파싱 테스트"""
     base_path = get_base_path()
-    schema_path = base_path / "templates" / template_category_name / "schema.json"
+    schema_path = base_path / "templates" / template / "schema.json"
     with open(schema_path, "r", encoding="utf-8") as f:
         schema = json.load(f)
 
@@ -202,10 +202,10 @@ def test_parse_content(data_env, template_category_name):
     success_count = 0
     for enum in TemplateItems:
         try:
-            template_name = f"templates/{template_category_name}/{enum.value}"
-            print(template_name)
-            template = data_env.get_template(template_name)
-            print(template.render(schema_data))
+            component_path = f"templates/{template}/{enum.value}"
+            print(component_path)
+            component = data_env.get_component_template(component_path)
+            print(component.render(schema_data))
             success_count += 1
         except TemplateNotFound:
             pass
@@ -248,15 +248,15 @@ def test_parse_content(data_env, template_category_name):
         ("..", False),
     ],
 )
-def test_check_file_name(temp_env: TemplyEnv, file_name: str, expected: bool):
-    """파일명 검증 테스트
+def test_validate_template_name(temp_env: TemplyEnv, file_name: str, expected: bool):
+    """템플릿 이름 검증 테스트
 
     Args:
         temp_env: TemplyEnv 인스턴스
         file_name: 테스트할 파일명
         expected: 예상되는 결과
     """
-    assert temp_env.check_file_name(file_name) == expected
+    assert temp_env.validate_template_name(file_name) == expected
 
 
 @pytest.mark.asyncio
@@ -280,20 +280,20 @@ async def test_temply_env_get_source(temp_env: TemplyEnv):
     partial_path.write_text("test partial content", encoding=temp_env.file_encoding)
 
     # 템플릿 생성
-    template_dir = temp_env.templates_dir / "test_category"
+    template_dir = temp_env.templates_dir / "test_template"
     template_dir.mkdir(exist_ok=True)
     template_path = template_dir / TemplateItems.HTML_EMAIL.value
     template_path.write_text("test template content", encoding=temp_env.file_encoding)
 
     # 소스 조회 테스트
-    layout_source, _, _ = temp_env.get_source_layout("test_layout")
+    layout_source, _, _ = temp_env.load_layout_source("test_layout")
     assert "test layout content" in layout_source
 
-    partial_source, _, _ = temp_env.get_source_partial("test_partial")
+    partial_source, _, _ = temp_env.load_partial_source("test_partial")
     assert "test partial content" in partial_source
 
-    template_source, _, _ = temp_env.get_source_template(
-        "test_category", TemplateItems.HTML_EMAIL.value
+    template_source, _, _ = temp_env.load_component_source(
+        "test_template", TemplateItems.HTML_EMAIL.value
     )
     assert "test template content" in template_source
 
@@ -308,61 +308,63 @@ async def test_temply_env_get_template(temp_env: TemplyEnv):
     template_path.write_text("test template content", encoding=temp_env.file_encoding)
 
     # 템플릿 조회
-    template = temp_env.get_template(f"templates/test_category/{TemplateItems.HTML_EMAIL.value}")
-    assert template.render() == "test template content"
+    component = temp_env.get_component_template(
+        f"templates/test_category/{TemplateItems.HTML_EMAIL.value}"
+    )
+    assert component.render() == "test template content"
 
 
 @pytest.mark.asyncio
 async def test_temply_env_get_category_names(temp_env: TemplyEnv):
     """카테고리 목록 조회 테스트"""
     # 카테고리 생성
-    categories = ["category1", "category2", "category3"]
-    for category in categories:
-        (temp_env.templates_dir / category).mkdir(exist_ok=True)
+    templates = ["template1", "template2", "template3"]
+    for template in templates:
+        (temp_env.templates_dir / template).mkdir(exist_ok=True)
 
     # 카테고리 목록 조회
-    category_names = temp_env.get_category_names()
-    assert set(category_names) == set(categories)
+    template_names = temp_env.get_template_names()
+    assert set(template_names) == set(templates)
 
 
 @pytest.mark.asyncio
 async def test_temply_env_get_template_names(temp_env: TemplyEnv):
     """템플릿 목록 조회 테스트"""
     # 카테고리와 템플릿 생성
-    category = "test_category"
-    category_dir = temp_env.templates_dir / category
-    category_dir.mkdir(exist_ok=True)
+    template = "test_template"
+    template_dir = temp_env.templates_dir / template
+    template_dir.mkdir(exist_ok=True)
 
-    templates = [TemplateItems.HTML_EMAIL.value, TemplateItems.TEXT_EMAIL.value]
-    for template in templates:
-        (category_dir / template).write_text("test content", encoding=temp_env.file_encoding)
+    components = [TemplateItems.HTML_EMAIL.value, TemplateItems.TEXT_EMAIL.value]
+    for component in components:
+        (template_dir / component).write_text("test content", encoding=temp_env.file_encoding)
 
     # 템플릿 목록 조회
-    template_names = temp_env.get_template_names(category)
-    assert set(template_names) == set(templates)
+    component_names = temp_env.get_component_names(template)
+    assert set(component_names) == set(components)
 
 
 @pytest.mark.asyncio
 async def test_temply_env_check_file_name(temp_env: TemplyEnv):
     """파일명 검사 테스트"""
     # 유효한 파일명
-    assert temp_env.check_file_name("valid_name")
-    assert temp_env.check_file_name("valid-name")
-    assert temp_env.check_file_name("valid_name_123")
+    assert temp_env.validate_template_name("valid_name")
+    assert temp_env.validate_template_name("valid-name")
+    assert temp_env.validate_template_name("valid_name_123")
 
     # 유효하지 않은 파일명
-    assert not temp_env.check_file_name("")  # 빈 문자열
-    assert not temp_env.check_file_name(" ")  # 공백만 있는 문자열
-    assert not temp_env.check_file_name(".hidden")  # 숨김 파일
-    assert not temp_env.check_file_name("invalid/name")  # 슬래시 포함
-    assert not temp_env.check_file_name("invalid:name")  # 콜론 포함
-    assert not temp_env.check_file_name("invalid*name")  # 별표 포함
-    assert not temp_env.check_file_name("invalid?name")  # 물음표 포함
-    assert not temp_env.check_file_name('invalid"name')  # 따옴표 포함
-    assert not temp_env.check_file_name("invalid<name")  # 꺾쇠 포함
-    assert not temp_env.check_file_name("invalid>name")  # 꺾쇠 포함
-    assert not temp_env.check_file_name("invalid|name")  # 파이프 포함
-    assert not temp_env.check_file_name("invalid name")  # 공백 포함
+    assert not temp_env.validate_template_name("")  # 빈 문자열
+    assert not temp_env.validate_template_name(" ")  # 공백만 있는 문자열
+    assert not temp_env.validate_template_name(".hidden")  # 숨김 파일
+    assert not temp_env.validate_template_name("invalid/name")  # 슬래시 포함
+    assert not temp_env.validate_template_name("invalid:name")  # 콜론 포함
+    assert not temp_env.validate_template_name("invalid*name")  # 별표 포함
+    assert not temp_env.validate_template_name("invalid?name")  # 물음표 포함
+    assert not temp_env.validate_template_name('invalid"name')  # 따옴표 포함
+    assert not temp_env.validate_template_name("invalid<name")  # 꺾쇠 포함
+    assert not temp_env.validate_template_name("invalid>name")  # 꺾쇠 포함
+    assert not temp_env.validate_template_name("invalid|name")  # 파이프 포함
+    assert not temp_env.validate_template_name("invalid name")  # 공백 포함
 
 
 @pytest.mark.asyncio
@@ -377,17 +379,17 @@ async def test_temply_env_make_jinja_format(temp_env: TemplyEnv):
         updated_at=BaseMetaData.get_current_datetime(),
         updated_by="test",
     )
-    meta_format = temp_env.make_meta_jinja_format(meta)
+    meta_format = temp_env.format_meta_block(meta)
     assert "test description" in meta_format
     assert "test" in meta_format
 
     # 레이아웃 포맷
-    layout_format = temp_env.make_layout_jinja_format("test_layout")
+    layout_format = temp_env.format_layout_block("test_layout")
     assert "{%- extends 'layouts/test_layout' -%}" in layout_format
 
     # 파셜 포맷
     partials = {"test_partial"}
-    partials_format = temp_env.make_partials_jinja_format(partials)
+    partials_format = temp_env.format_partial_imports(partials)
     assert (
         "{%- from 'partials/test_partial' import render as partials_test_partial with context -%}"
         in partials_format
@@ -395,14 +397,14 @@ async def test_temply_env_make_jinja_format(temp_env: TemplyEnv):
 
     # 본문 포맷
     content = "test content"
-    layout_body = temp_env.make_layout_body_jinja_format(content)
+    layout_body = temp_env.format_layout_content(content)
     assert "{%- block content -%}" in layout_body
     assert content in layout_body
 
-    partial_body = temp_env.make_partial_body_jinja_format(content)
+    partial_body = temp_env.format_partial_content(content)
     assert "{%- macro render(locals = {}) -%}" in partial_body
     assert content in partial_body
 
-    # template_body = temp_env.make_template_body_jinja_format(content)
+    # template_body = temp_env.get_template_body_jinja_format(content)
     # assert "{%- block content -%}" in template_body
     # assert content in template_body

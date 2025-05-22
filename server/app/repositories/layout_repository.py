@@ -18,28 +18,28 @@ class LayoutRepository:
         self.temply_env = temply_env
         self.layout_parser = LayoutParser(self.temply_env)
 
-    async def create(self, user: User, layout: LayoutCreate) -> Layout:
+    async def create(self, user: User, layout_create: LayoutCreate) -> Layout:
         """레이아웃 생성"""
         layout = await self.layout_parser.create(
-            user, layout.name, layout.content, layout.description
+            user, layout_create.name, layout_create.content, layout_create.description
         )
         return Layout.model_validate(layout)
 
-    async def get(self, layout_name: str) -> Layout:
+    async def get(self, layout: str) -> Layout:
         """레이아웃 조회"""
-        layout = await self.layout_parser.get_layout(layout_name)
+        layout = await self.layout_parser.get_layout(layout)
         return Layout.model_validate(layout)
 
-    async def update(self, user: User, layout_name: str, layout: LayoutUpdate) -> Layout:
+    async def update(self, user: User, layout: str, layout_update: LayoutUpdate) -> Layout:
         """레이아웃 수정"""
         layout = await self.layout_parser.update(
-            user, layout_name, layout.content, layout.description
+            user, layout, layout_update.content, layout_update.description
         )
         return Layout.model_validate(layout)
 
-    async def delete(self, user: User, layout_name: str) -> None:
+    async def delete(self, user: User, layout: str) -> None:
         """레이아웃 삭제"""
-        await self.layout_parser.delete(user, layout_name)
+        await self.layout_parser.delete(user, layout)
 
     async def list(self) -> List[Layout]:
         """레이아웃 목록 조회"""

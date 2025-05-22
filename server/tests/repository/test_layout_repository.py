@@ -226,7 +226,7 @@ async def test_layout_multiple(temp_env: TemplyEnv, user: User):
 
     # 파일 내용 검증
     for layout in layouts:
-        content, _, _ = temp_env.get_source_layout(layout.name)
+        content, _, _ = temp_env.load_layout_source(layout.name)
         assert layout.content in content
         if layout.description:
             assert layout.description in content

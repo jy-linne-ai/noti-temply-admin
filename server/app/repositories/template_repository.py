@@ -7,7 +7,11 @@ from typing import List
 from app.core.temply.parser.template_parser import TemplateParser
 from app.core.temply.temply_env import TemplyEnv
 from app.models.common_model import User
-from app.models.template_model import Template, TemplateCreate, TemplateUpdate
+from app.models.template_model import (
+    TemplateComponent,
+    TemplateComponentCreate,
+    TemplateComponentUpdate,
+)
 
 
 class TemplateRepository:
@@ -18,57 +22,67 @@ class TemplateRepository:
         self.temply_env = temply_env
         self.template_parser = TemplateParser(self.temply_env)
 
-    async def create(self, user: User, category_name: str, template: TemplateCreate) -> Template:
+    async def create_component(
+        self, user: User, template: str, component_create: TemplateComponentCreate
+    ) -> TemplateComponent:
         """템플릿 생성"""
-        template = await self.template_parser.create(
+        component = await self.template_parser.create_component(
             user,
-            category_name,
-            template.name,
-            template.content,
-            template.description,
-            template.layout,
-            template.partials,
+            template,
+            component_create.component,
+            component_create.content,
+            component_create.description,
+            component_create.layout,
+            component_create.partials,
         )
 
-        return Template.model_validate(template)
+        return TemplateComponent.model_validate(component)
 
-    async def get(self, category_name: str, template_name: str) -> Template:
+    async def get_component(self, template: str, component: str) -> TemplateComponent:
         """템플릿 조회"""
-        template = await self.template_parser.get_template(f"{category_name}/{template_name}")
-        return Template.model_validate(template)
+        component = await self.template_parser.get_component(template, component)
+        return TemplateComponent.model_validate(component)
 
-    async def list(self) -> List[Template]:
-        """List Templates"""
-        templates = await self.template_parser.get_templates()
-        return [Template.model_validate(template) for template in templates]
+    async def get_components(self) -> List[TemplateComponent]:
+        """List Components"""
+        components = await self.template_parser.get_components()
+        return [TemplateComponent.model_validate(component) for component in components]
 
-    async def update(
-        self, user: User, category_name: str, template_name: str, template: TemplateUpdate
-    ) -> Template:
+    async def update_component(
+        self,
+        user: User,
+        template: str,
+        component: str,
+        component_update: TemplateComponentUpdate,
+    ) -> TemplateComponent:
         """템플릿 수정"""
-        updated_template = await self.template_parser.update(
+        updated_component = await self.template_parser.update_component(
             user,
-            category_name,
-            template_name,
-            template.content,
-            template.description,
-            template.layout,
-            template.partials,
+            template,
+            component,
+            component_update.content,
+            component_update.description,
+            component_update.layout,
+            component_update.partials,
         )
-        return Template.model_validate(updated_template)
+        return TemplateComponent.model_validate(updated_component)
 
-    async def delete(self, user: User, category_name: str, template_name: str) -> None:
+    async def delete_component(self, user: User, template: str, component: str) -> None:
         """템플릿 삭제"""
-        await self.template_parser.delete(user, category_name, template_name)
+        await self.template_parser.delete_component(user, template, component)
 
-    async def get_categories(self) -> List[str]:
-        """Get Categories"""
-        return await self.template_parser.get_categories()
+    async def get_template_names(self) -> List[str]:
+        """Get Template Names"""
+        return await self.template_parser.get_template_names()
 
-    async def get_templates(self, category_name: str) -> List[Template]:
-        """Get Templates"""
-        return await self.template_parser.get_templates_by_category(category_name)
+    async def get_component_names_by_template(self, template: str) -> List[str]:
+        """Get Component Names by Template"""
+        return await self.template_parser.get_component_names_by_template(template)
 
-    async def delete_templates(self, user: User, category_name: str) -> None:
-        """Delete Templates"""
-        await self.template_parser.delete_templates(user, category_name)
+    async def get_components_by_template(self, template: str) -> List[TemplateComponent]:
+        """Get Components by Template"""
+        return await self.template_parser.get_components_by_template(template)
+
+    async def delete_components_by_template(self, user: User, template: str) -> None:
+        """Delete Components by Template"""
+        await self.template_parser.delete_components_by_template(user, template)
