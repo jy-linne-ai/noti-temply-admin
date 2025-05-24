@@ -8,10 +8,13 @@ import {
   Paper,
   Snackbar,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from '@mui/material';
 import { useApi } from '@/lib/api';
 import { PartialTemplate } from '@/types/partial';
-import { PartialEditor } from '@/components/partials/PartialEditor';
+import { PartialEditor } from '@/components/features/partials/PartialEditor';
 
 export default function NewPartialPage() {
   const params = useParams();
@@ -30,14 +33,14 @@ export default function NewPartialPage() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          파셜 생성
-        </Typography>
-      </Box>
-
-      <Paper sx={{ p: 3 }}>
+    <Dialog
+      open={true}
+      onClose={() => router.push(`/versions/${params.version}/partials`)}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogTitle>파셜 생성</DialogTitle>
+      <DialogContent dividers>
         <PartialEditor
           isNew={true}
           partial={{
@@ -51,10 +54,14 @@ export default function NewPartialPage() {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }}
-          onSave={handleSave}
-          onCancel={() => router.push(`/versions/${params.version}/partials`)}
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) router.push(`/versions/${params.version}/partials`);
+          }}
+          onSubmit={handleSave}
+          version={params.version as string}
         />
-      </Paper>
+      </DialogContent>
 
       <Snackbar
         open={!!error}
@@ -65,6 +72,6 @@ export default function NewPartialPage() {
           {error}
         </Alert>
       </Snackbar>
-    </Box>
+    </Dialog>
   );
 } 

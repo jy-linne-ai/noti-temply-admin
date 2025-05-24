@@ -19,7 +19,7 @@ import {
 import { Add as AddIcon, ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon } from '@mui/icons-material';
 import { useApi } from '@/lib/api';
 import { PartialTemplate } from '@/types/partial';
-import { PartialEditor } from '@/components/partials/PartialEditor';
+import { PartialEditor } from '@/components/features/partials/PartialEditor';
 
 interface PartialWithChildren extends PartialTemplate {
   children?: PartialWithChildren[];
@@ -274,9 +274,10 @@ export default function PartialsPage() {
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             }}
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+            onSubmit={handleCreate}
             version={params.version as string}
-            onSave={handleCreate}
-            onCancel={handleCloseDialog}
           />
         </DialogContent>
       </Dialog>

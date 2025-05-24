@@ -22,7 +22,7 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon, ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useApi } from '@/lib/api';
 import { PartialTemplate } from '@/types/partial';
-import { PartialEditor } from '@/components/partials/PartialEditor';
+import { PartialEditor } from '@/components/features/partials/PartialEditor';
 import { HtmlEditor } from '@/components/Editor';
 
 interface TabPanelProps {
@@ -203,6 +203,8 @@ export default function PartialDetailPage() {
                   label={dep}
                   variant="outlined"
                   color="primary"
+                  onClick={() => router.push(`/versions/${params.version}/partials/${dep}`)}
+                  sx={{ cursor: 'pointer' }}
                 />
               ))
             ) : (
@@ -257,9 +259,10 @@ export default function PartialDetailPage() {
           <Box sx={{ mt: 2 }}>
             <PartialEditor
               partial={partial}
+              open={isEditDialogOpen}
+              onOpenChange={setIsEditDialogOpen}
+              onSubmit={handleEdit}
               version={params.version as string}
-              onSave={handleEdit}
-              onCancel={handleCloseEditDialog}
             />
           </Box>
         </DialogContent>
