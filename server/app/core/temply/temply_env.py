@@ -3,7 +3,7 @@
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Set
+from typing import Any, Callable, Dict, Set
 
 from jinja2 import Environment, FileSystemLoader, PrefixLoader, StrictUndefined, Template, nodes
 from jinja2schema.model import Dictionary  # type: ignore
@@ -13,6 +13,7 @@ from app.core.config import Config
 from app.core.temply.parser.meta_model import JST, BaseMetaData
 from app.core.temply.schema.generator import infer_from_ast, to_json_schema
 from app.core.temply.schema.mergers import merge
+from app.core.temply.schema.utils import generate_object
 
 
 class TemplateItems(str, Enum):
@@ -60,7 +61,7 @@ class TemplyEnv:
                 / self.applied_version
                 / self.templates_dir_name
             )
-            self.layout_root_dir = (
+            self.layouts_dir = (
                 Path(str(self._config.noti_temply_dir))
                 / self.applied_version
                 / self.layouts_dir_name
@@ -130,34 +131,57 @@ class TemplyEnv:
         return self.env.loader.get_source(self.env, component_path)
 
     def load_layout_source(
-        self, layout_file: str
+        self, layout_name: str
     ) -> tuple[str, str | None, Callable[[], bool] | None]:
         """템플릿 소스 경로 조회"""
-        return self.load_source(self._build_layout_path(layout_file))
+        return self.load_source(self._build_layout_path(layout_name))
 
     def load_partial_source(
-        self, partial_file: str
+        self, partial_name: str
     ) -> tuple[str, str | None, Callable[[], bool] | None]:
         """파트 소스 경로 조회"""
-        return self.load_source(self._build_partial_path(partial_file))
+        return self.load_source(self._build_partial_path(partial_name))
 
     def load_component_source(
-        self, template: str, component: str
+        self, template_name: str, component_name: str
     ) -> tuple[str, str | None, Callable[[], bool] | None]:
         """템플릿 소스 경로 조회"""
-        return self.load_source(self._build_component_path(template, component))
+        return self.load_source(self._build_component_path(template_name, component_name))
 
-    def get_component_template(self, component_path: str) -> Template:
+    # def get_layout_template(self, layout_name: str) -> Template:
+    #     """레이아웃 조회"""
+    #     return self.env.get_template(self._build_layout_path(layout_name))
+
+    # def get_partial_template(self, partial_name: str) -> Template:
+    #     """파트 조회"""
+    #     return self.env.get_template(self._build_partial_path(partial_name))
+
+    def get_component_template(self, template_name: str, component_name: str) -> Template:
         """템플릿 조회"""
-        return self.env.get_template(component_path)
+        return self.env.get_template(self._build_component_path(template_name, component_name))
 
     def parse(self, content: str) -> nodes.Template:
         """템플릿 파싱"""
         return self.env.parse(content)
 
-    def source_parse(self, component_path: str) -> Any:
+    # def parse_layout(self, layout_name: str) -> nodes.Template:
+    #     """레이아웃 파싱"""
+    #     content, _, _ = self.load_layout_source(layout_name)
+    #     return self.parse(content)
+
+    # def parse_partial(self, partial_name: str) -> nodes.Template:
+    #     """파트 파싱"""
+    #     content, _, _ = self.load_partial_source(partial_name)
+    #     return self.parse(content)
+
+    def parse_component(self, template_name: str, component_name: str) -> nodes.Template:
+        """템플릿 컴포넌트 파싱"""
+        content, _, _ = self.load_component_source(template_name, component_name)
+        return self.parse(content)
+
+    def _source_parse_component(self, template_name: str, component_name: str) -> Any:
         """템플릿 컴포넌트 소스 파싱"""
-        content, _, _ = self.load_source(component_path)
+        content, _, _ = self.load_component_source(template_name, component_name)
         return self.parse(content)
 
     def get_template_names(self) -> list[str]:
@@ -186,15 +210,31 @@ class TemplyEnv:
             components.append(item.name)
         return components
 
-    def get_component_schema(self, template: str) -> dict[str, Any]:
+    def get_template_schema(self, template: str) -> Dict[str, Any]:
         """템플릿 컴포넌트 스키마 조회"""
         params = Dictionary()
-        for component_file_path in self.get_component_names(template):
-            ast = self.source_parse(component_file_path)
+        for component_name in self.get_component_names(template):
+            ast = self._source_parse_component(template, component_name)
             rv = infer_from_ast(ast, self.env)
             params = merge(params, rv)
-
         return to_json_schema(params)
+
+    def get_template_schema_generator(self, template: str) -> Dict[str, Any]:
+        """템플릿 컴포넌트 스키마 생성기 조회"""
+        return generate_object(self.get_template_schema(template))
+
+    def _render_component(
+        self, template: str, component_name: str, schema_data: Dict[str, Any]
+    ) -> str:
+        """템플릿 컴포넌트 렌더링"""
+        return self.get_component_template(template, component_name).render(schema_data)
+
+    def render_template(self, template: str, schema_data: Dict[str, Any]) -> str:
+        """템플릿 컴포넌트 렌더링"""
+        result = dict()
+        for component_name in self.get_component_names(template):
+            result[component_name] = self._render_component(template, component_name, schema_data)
+        return result
 
     def _build_template_path(self, template: str) -> str:
         """템플릿 경로 조회"""

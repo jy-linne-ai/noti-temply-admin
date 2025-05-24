@@ -1,6 +1,6 @@
 """Template API"""
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
@@ -8,28 +8,34 @@ from fastapi.responses import JSONResponse
 from app.core.dependency import get_template_service, get_user
 from app.core.exceptions import TemplateAlreadyExistsError, TemplateNotFoundError
 from app.models.common_model import User
-from app.models.template_model import Template, TemplateCreate, TemplateUpdate
+from app.models.template_model import (
+    TemplateComponent,
+    TemplateComponentCreate,
+    TemplateComponentUpdate,
+)
 from app.services.template_service import TemplateService
 
-router = APIRouter(prefix="/categories", tags=["categories"])
+router = APIRouter()
 
 
 @router.get("", response_model=List[str])
-async def list_categories(
+async def list_templates(
+    layout: Optional[str] = None,
+    partial: Optional[str] = None,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
 ) -> List[str]:
     """카테고리 목록을 조회합니다."""
-    return await template_service.get_categories()
+    return await template_service.get_template_names()
 
 
-@router.post("/{category}/templates", response_model=Template)
+@router.post("/{template}/components", response_model=TemplateComponent)
 async def create_template(
     category: str,
-    template_create: TemplateCreate,
+    template_create: TemplateComponentCreate,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
-) -> Template:
+) -> TemplateComponent:
     """새로운 템플릿을 생성합니다."""
     try:
         return await template_service.create(user, category, template_create)
@@ -37,18 +43,18 @@ async def create_template(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.get("/{category}/templates", response_model=List[Template])
+@router.get("/{template}/components", response_model=List[TemplateComponent])
 async def list_templates_by_category(
     category: str,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
-) -> List[Template]:
+) -> List[TemplateComponent]:
     """특정 카테고리의 템플릿 목록을 조회합니다."""
     return await template_service.get_templates(category)
 
 
-@router.delete("/{category}/templates", response_model=List[str])
-async def delete_templates_by_category(
+@router.delete("/{template}", response_model=List[str])
+async def delete_template(
     category: str,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
@@ -61,13 +67,13 @@ async def delete_templates_by_category(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.get("/{category}/templates/{template}", response_model=Template)
-async def get_template(
+@router.get("/{template}/components/{component}", response_model=TemplateComponent)
+async def get_template_component(
     category: str,
     template: str,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
-) -> List[Template]:
+) -> List[TemplateComponent]:
     """특정 카테고리의 특정 타입 템플릿 목록을 조회합니다."""
     try:
         return await template_service.get(category, template)
@@ -75,14 +81,14 @@ async def get_template(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.put("/{category}/templates/{template}", response_model=Template)
-async def update_template(
+@router.put("/{template}/components/{component}", response_model=TemplateComponent)
+async def update_template_component(
     category: str,
     template: str,
-    template_update: TemplateUpdate,
+    template_update: TemplateComponentUpdate,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
-) -> Template:
+) -> TemplateComponent:
     """템플릿을 수정합니다."""
     try:
         return await template_service.update(user, category, template, template_update)
@@ -90,8 +96,8 @@ async def update_template(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.delete("/{category}/templates/{template}")
-async def delete_template(
+@router.delete("/{template}/components/{component}")
+async def delete_template_component(
     category: str,
     template: str,
     template_service: TemplateService = Depends(get_template_service),

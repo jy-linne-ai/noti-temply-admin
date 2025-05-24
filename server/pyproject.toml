@@ -17,8 +17,8 @@ python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 python-multipart = "^0.0.9"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 aiofiles = "^24.1.0"
-jinja2schema = "^0.1.0"
 faker = "^37.1.0"
+pydantic-settings = "^2.2.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
@@ -30,8 +30,6 @@ mypy = "^1.8.0"
 types-python-jose = "^3.3.5"
 types-passlib = "^1.7.6"
 types-aiofiles = "^23.2.0"
-types-jsonschema = "^4.17.0"
-jsonschema = "^4.17.3"
 pylint = "^3.3.7"
 pytest-asyncio = "^0.26.0"
 
@@ -83,9 +81,3 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 exclude = [".venv"]
-
-[[tool.mypy.overrides]]
-module = "jinja2schema.*"
-ignore_missing_imports = true
-ignore_errors = true
-exclude = ["jinja2schema.*"]

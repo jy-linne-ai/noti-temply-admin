@@ -2,7 +2,7 @@
 레이아웃 서비스
 """
 
-from typing import List
+from typing import Any, Dict, List
 
 from app.models.common_model import User
 from app.models.layout_model import Layout, LayoutCreate, LayoutUpdate
@@ -23,6 +23,14 @@ class LayoutService:
     async def get(self, layout_name: str) -> Layout:
         """레이아웃 조회"""
         return await self.repository.get(layout_name)
+
+    async def get_schema(self, layout_name: str) -> Dict[str, Any]:
+        """레이아웃 스키마 조회"""
+        return await self.repository.get_schema(layout_name)
+
+    async def render_layout(self, layout_name: str, schema_data: Dict[str, Any]) -> str:
+        """레이아웃 파싱"""
+        return await self.repository.render_layout(layout_name, schema_data)
 
     async def list(self) -> List[Layout]:
         """레이아웃 목록 조회"""

@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from app.core.temply.temply_env import TemplateItems
 
-router = APIRouter(prefix="/template-items", tags=["template-items"])
+router = APIRouter()
 
 
 @router.get("", response_model=List[str])

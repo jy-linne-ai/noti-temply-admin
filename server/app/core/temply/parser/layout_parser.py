@@ -56,7 +56,7 @@ class LayoutParser:
             else:
                 await self._initialize()
 
-    async def _parse_layout(self, layout: str) -> LayoutMetaData:
+    async def _parse_layout(self, layout_name: str) -> LayoutMetaData:
         """Parse a layout template.
 
         Args:
@@ -66,10 +66,10 @@ class LayoutParser:
             LayoutMetaData: Parsed layout metadata
         """
         try:
-            content, _, _ = self.env.load_layout_source(layout)
+            content, _, _ = self.env.load_layout_source(layout_name)
             meta, block = MetaParser.parse(content)
             return LayoutMetaData(
-                name=layout,
+                name=layout_name,
                 content=block.strip(),
                 description=meta.description,
                 created_at=meta.created_at,
@@ -78,7 +78,7 @@ class LayoutParser:
                 updated_by=meta.updated_by,
             )
         except FileNotFoundError as e:
-            raise LayoutNotFoundError(f"Layout {layout} not found: {e}") from e
+            raise LayoutNotFoundError(f"Layout {layout_name} not found: {e}") from e
 
     async def _parse_layout_files(self) -> List[LayoutMetaData]:
         """Parse layout files and extract metadata.
@@ -87,8 +87,8 @@ class LayoutParser:
             List[LayoutMetaData]: List of layout metadata
         """
         layouts = []
-        for layout in self.env.get_layout_names():
-            layouts.append(await self._parse_layout(layout))
+        for layout_name in self.env.get_layout_names():
+            layouts.append(await self._parse_layout(layout_name))
         return layouts
 
     async def _build_layout_tree(self, layouts: List[LayoutMetaData]) -> None:
@@ -144,20 +144,20 @@ class LayoutParser:
         await self._ensure_initialized()
         return list(self.nodes.values())
 
-    async def get_layout(self, layout: str) -> LayoutMetaData:
+    async def get_layout(self, layout_name: str) -> LayoutMetaData:
         """Get a layout by name.
 
         Args:
             name: Name of the layout
         """
         await self._ensure_initialized()
-        layout = self.nodes.get(layout)
+        layout = self.nodes.get(layout_name)
         if layout is None:
-            raise LayoutNotFoundError(f"Layout {layout} not found")
+            raise LayoutNotFoundError(f"Layout {layout_name} not found")
         return layout
 
     async def create(
-        self, user: User, layout: str, content: str, description: Optional[str] = None
+        self, user: User, layout_name: str, content: str, description: Optional[str] = None
     ) -> LayoutMetaData:
         """Create a layout.
 
@@ -169,13 +169,13 @@ class LayoutParser:
         await self._ensure_initialized()
         self._initialized = False
         try:
-            if not self.env.validate_template_name(layout):
-                raise ValueError(f"Invalid layout name: {layout}")
+            if not self.env.validate_template_name(layout_name):
+                raise ValueError(f"Invalid layout name: {layout_name}")
 
-            if layout in self.nodes:
-                raise LayoutAlreadyExistsError(f"Layout {layout} already exists")
-            if (self.env.layouts_dir / layout).exists():
-                raise LayoutAlreadyExistsError(f"Layout {layout} already exists")
+            if layout_name in self.nodes:
+                raise LayoutAlreadyExistsError(f"Layout {layout_name} already exists")
+            if (self.env.layouts_dir / layout_name).exists():
+                raise LayoutAlreadyExistsError(f"Layout {layout_name} already exists")
 
             meta = BaseMetaData(
                 description=description,
@@ -185,14 +185,14 @@ class LayoutParser:
                 updated_by=user.name,
             )
 
-            await self._write_layout(layout, content, meta)
+            await self._write_layout(layout_name, content, meta)
 
-            self.nodes[layout] = await self._parse_layout(layout)
-            return self.nodes[layout]
+            self.nodes[layout_name] = await self._parse_layout(layout_name)
+            return self.nodes[layout_name]
         finally:
             self._initialized = True
 
-    async def _write_layout(self, layout: str, content: str, meta: BaseMetaData) -> None:
+    async def _write_layout(self, layout_name: str, content: str, meta: BaseMetaData) -> None:
         """Write a layout.
 
         Args:
@@ -200,13 +200,13 @@ class LayoutParser:
             content: Content of the layout
             meta: Metadata of the layout
         """
-        with open(self.env.layouts_dir / layout, "w", encoding=self.env.file_encoding) as f:
+        with open(self.env.layouts_dir / layout_name, "w", encoding=self.env.file_encoding) as f:
             f.write(self.env.format_meta_block(meta))
             f.write("\n")
             f.write(content)
 
     async def update(
-        self, user: User, layout: str, content: str, description: Optional[str] = None
+        self, user: User, layout_name: str, content: str, description: Optional[str] = None
     ) -> LayoutMetaData:
         """Update a layout.
 
@@ -218,13 +218,13 @@ class LayoutParser:
         await self._ensure_initialized()
         self._initialized = False
         try:
-            if layout not in self.nodes:
-                raise LayoutNotFoundError(f"Layout {layout} not found")
+            if layout_name not in self.nodes:
+                raise LayoutNotFoundError(f"Layout {layout_name} not found")
 
-            if not (self.env.layouts_dir / layout).exists():
-                raise LayoutNotFoundError(f"Layout {layout} not found")
+            if not (self.env.layouts_dir / layout_name).exists():
+                raise LayoutNotFoundError(f"Layout {layout_name} not found")
 
-            _layout = await self.get_layout(layout)
+            _layout = await self.get_layout(layout_name)
 
             meta = BaseMetaData(
                 description=description,
@@ -234,14 +234,14 @@ class LayoutParser:
                 updated_by=user.name,
             )
 
-            await self._write_layout(layout, content, meta)
+            await self._write_layout(layout_name, content, meta)
 
-            self.nodes[layout] = await self._parse_layout(layout)
-            return self.nodes[layout]
+            self.nodes[layout_name] = await self._parse_layout(layout_name)
+            return self.nodes[layout_name]
         finally:
             self._initialized = True
 
-    async def delete(self, user: User, layout: str) -> None:
+    async def delete(self, user: User, layout_name: str) -> None:
         """Delete a layout.
 
         Args:
@@ -250,12 +250,12 @@ class LayoutParser:
         await self._ensure_initialized()
         self._initialized = False
         try:
-            if layout not in self.nodes:
-                raise LayoutNotFoundError(f"Layout {layout} not found")
-            if not (self.env.layouts_dir / layout).exists():
-                raise LayoutNotFoundError(f"Layout {layout} not found")
+            if layout_name not in self.nodes:
+                raise LayoutNotFoundError(f"Layout {layout_name} not found")
+            if not (self.env.layouts_dir / layout_name).exists():
+                raise LayoutNotFoundError(f"Layout {layout_name} not found")
 
-            os.remove(self.env.layouts_dir / layout)
-            del self.nodes[layout]
+            os.remove(self.env.layouts_dir / layout_name)
+            del self.nodes[layout_name]
         finally:
             self._initialized = True

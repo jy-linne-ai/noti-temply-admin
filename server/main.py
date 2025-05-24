@@ -2,18 +2,15 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRouter
 
-from app.api import layout_api, partial_api, template_api, template_item_api
+from app.api import layout_api, partial_api, template_api, template_item_api, version_api
 from app.core.config import CONFIG
 
 
 def create_app() -> FastAPI:
     """Create App"""
-    app = FastAPI(
-        title="Noti Temply Admin",
-        description="템플릿 관리 시스템",
-        version="1.0.0",
-    )
+    app = FastAPI(title="Noti Temply Admin", description="템플릿 관리 시스템", version="1.0.0")
 
     # CORS 설정
     app.add_middleware(
@@ -23,13 +20,21 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    router = APIRouter()
+    router.include_router(layout_api.router, prefix="/versions/{version}/layouts", tags=["layouts"])
+    router.include_router(
+        partial_api.router, prefix="/versions/{version}/partials", tags=["partials"]
+    )
+    router.include_router(
+        template_api.router, prefix="/versions/{version}/templates", tags=["templates"]
+    )
 
-    # 라우터 등록
-    app.include_router(template_api.router)
-    app.include_router(layout_api.router)
-    app.include_router(partial_api.router)
-    app.include_router(template_item_api.router)
+    router.include_router(
+        template_item_api.router, prefix="/template-items", tags=["template-items"]
+    )
+    router.include_router(version_api.router, prefix="/versions", tags=["versions"])
 
+    app.include_router(router, prefix="/api/v1")
     return app
 
 

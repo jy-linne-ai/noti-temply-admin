@@ -60,3 +60,4 @@ logs/
 # python
 __pycache__/
 .mypy_cache/
+**/.venv/

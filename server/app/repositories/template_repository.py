@@ -48,6 +48,15 @@ class TemplateRepository:
         components = await self.template_parser.get_components()
         return [TemplateComponent.model_validate(component) for component in components]
 
+    async def get_components_by_layout(self, layout_name: str) -> List[TemplateComponent]:
+        """List Components by Layout"""
+        components = await self.template_parser.get_components()
+        return [
+            TemplateComponent.model_validate(component)
+            for component in components
+            if component.layout == layout_name
+        ]
+
     async def update_component(
         self,
         user: User,

@@ -15,10 +15,7 @@ from app.models.common_model import User
 from app.models.partial_model import Partial, PartialCreate, PartialUpdate
 from app.services.partial_service import PartialService
 
-router = APIRouter(
-    prefix="/partials",
-    tags=["partials"],
-)
+router = APIRouter()
 
 
 @router.get("", response_model=List[Partial])

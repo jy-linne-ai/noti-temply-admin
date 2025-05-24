@@ -41,17 +41,17 @@ def template_names() -> List[str]:
 
 
 @pytest.mark.asyncio
-def _get_template_item_names(root_path: Path, template_name: str) -> List[str]:
+def _get_component_names(root_path: Path, template_name: str) -> List[str]:
     """템플릿 이름 추출"""
-    match_template_files = []
+    component_names = []
     template_path = root_path / "templates" / template_name
     # print(root_path)
     # print(template_path)
     for file_path in template_path.iterdir():
         if file_path.is_dir() or file_path.name.endswith(".json") or file_path.name.startswith("."):
             continue
-        match_template_files.append(f"templates/{template_name}/{file_path.name}")
-    return match_template_files
+        component_names.append(file_path.name)
+    return component_names
 
 
 @pytest.mark.asyncio
@@ -62,13 +62,14 @@ def test_schema_equal(data_env, template_name):
     base_path = get_base_path()
     # template_name = "arrangement_mailer"
     # template_name = "arrangement_mailer:receive_message"
-    match_template_files = _get_template_item_names(base_path, template_name)
+    match_template_files = _get_component_names(base_path, template_name)
     params = Dictionary()
 
-    for template_file_path in match_template_files:
+    for component_name in match_template_files:
         # templates/arrangement_mailer/... 형식으로 템플릿 로드
         # print(template_file_path)
-        ast = data_env.source_parse(template_file_path)
+        # pylint: disable=protected-access
+        ast = data_env._source_parse_component(template_name, component_name)
         rv = infer_from_ast(ast, data_env.env)
         params = merge(params, rv)
         # print(template_file_path)
@@ -202,10 +203,8 @@ def test_parse_content(data_env, template):
     success_count = 0
     for enum in TemplateItems:
         try:
-            component_path = f"templates/{template}/{enum.value}"
-            print(component_path)
-            component = data_env.get_component_template(component_path)
-            print(component.render(schema_data))
+            # pylint: disable=protected-access
+            print(data_env._render_component(template, enum.value, schema_data))
             success_count += 1
         except TemplateNotFound:
             pass
@@ -308,9 +307,7 @@ async def test_temply_env_get_template(temp_env: TemplyEnv):
     template_path.write_text("test template content", encoding=temp_env.file_encoding)
 
     # 템플릿 조회
-    component = temp_env.get_component_template(
-        f"templates/test_category/{TemplateItems.HTML_EMAIL.value}"
-    )
+    component = temp_env.get_component_template("test_category", TemplateItems.HTML_EMAIL.value)
     assert component.render() == "test template content"
 
 
