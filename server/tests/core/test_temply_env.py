@@ -17,7 +17,7 @@ from app.core.temply.parser.meta_model import BaseMetaData
 from app.core.temply.schema.mergers import merge
 from app.core.temply.schema.parser import get_mode_title
 from app.core.temply.schema.utils import generate_object
-from app.core.temply.temply_env import TemplateItems, TemplyEnv, infer_from_ast, to_json_schema
+from app.core.temply.temply_env import TemplateComponents, TemplyEnv, infer_from_ast, to_json_schema
 
 
 def get_base_path() -> Path:
@@ -26,7 +26,6 @@ def get_base_path() -> Path:
     return base
 
 
-@pytest.mark.asyncio
 def template_names() -> List[str]:
     """템플릿 이름 추출"""
     base_path = get_base_path()
@@ -40,7 +39,6 @@ def template_names() -> List[str]:
     return match_template_files
 
 
-@pytest.mark.asyncio
 def _get_component_names(root_path: Path, template_name: str) -> List[str]:
     """템플릿 이름 추출"""
     component_names = []
@@ -57,7 +55,7 @@ def _get_component_names(root_path: Path, template_name: str) -> List[str]:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("template_name", template_names())
 # pylint: disable=redefined-outer-name
-def test_schema_equal(data_env, template_name):
+async def test_schema_equal(data_env, template_name):
     """모든 템플릿 파싱 테스트"""
     base_path = get_base_path()
     # template_name = "arrangement_mailer"
@@ -164,7 +162,7 @@ def test_schema_equal(data_env, template_name):
 
 
 @pytest.mark.asyncio
-def test_get_mode_title():
+async def test_get_mode_title():
     """모드 제목 테스트"""
 
     assert get_mode_title("input") == "Input"
@@ -175,7 +173,7 @@ def test_get_mode_title():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("template_name", template_names())
 # pylint: disable=redefined-outer-name
-def test_schema_validate_with_random_data(template_name):
+async def test_schema_validate_with_random_data(template_name):
     """템플릿 스키마 검증 테스트"""
     base_path = get_base_path()
     schema_path = base_path / "templates" / template_name / "schema.json"
@@ -191,7 +189,7 @@ def test_schema_validate_with_random_data(template_name):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("template", template_names())
-def test_parse_content(data_env, template):
+async def test_parse_content(data_env, template):
     """템플릿 파싱 테스트"""
     base_path = get_base_path()
     schema_path = base_path / "templates" / template / "schema.json"
@@ -201,7 +199,7 @@ def test_parse_content(data_env, template):
     schema_data = generate_object(schema)
 
     success_count = 0
-    for enum in TemplateItems:
+    for enum in TemplateComponents:
         try:
             # pylint: disable=protected-access
             print(data_env._render_component(template, enum.value, schema_data))
@@ -281,7 +279,7 @@ async def test_temply_env_get_source(temp_env: TemplyEnv):
     # 템플릿 생성
     template_dir = temp_env.templates_dir / "test_template"
     template_dir.mkdir(exist_ok=True)
-    template_path = template_dir / TemplateItems.HTML_EMAIL.value
+    template_path = template_dir / TemplateComponents.HTML_EMAIL.value
     template_path.write_text("test template content", encoding=temp_env.file_encoding)
 
     # 소스 조회 테스트
@@ -292,7 +290,7 @@ async def test_temply_env_get_source(temp_env: TemplyEnv):
     assert "test partial content" in partial_source
 
     template_source, _, _ = temp_env.load_component_source(
-        "test_template", TemplateItems.HTML_EMAIL.value
+        "test_template", TemplateComponents.HTML_EMAIL.value
     )
     assert "test template content" in template_source
 
@@ -303,11 +301,13 @@ async def test_temply_env_get_template(temp_env: TemplyEnv):
     # 템플릿 생성
     template_dir = temp_env.templates_dir / "test_category"
     template_dir.mkdir(exist_ok=True)
-    template_path = template_dir / TemplateItems.HTML_EMAIL.value
+    template_path = template_dir / TemplateComponents.HTML_EMAIL.value
     template_path.write_text("test template content", encoding=temp_env.file_encoding)
 
     # 템플릿 조회
-    component = temp_env.get_component_template("test_category", TemplateItems.HTML_EMAIL.value)
+    component = temp_env.get_component_template(
+        "test_category", TemplateComponents.HTML_EMAIL.value
+    )
     assert component.render() == "test template content"
 
 
@@ -332,7 +332,7 @@ async def test_temply_env_get_template_names(temp_env: TemplyEnv):
     template_dir = temp_env.templates_dir / template
     template_dir.mkdir(exist_ok=True)
 
-    components = [TemplateItems.HTML_EMAIL.value, TemplateItems.TEXT_EMAIL.value]
+    components = [TemplateComponents.HTML_EMAIL.value, TemplateComponents.TEXT_EMAIL.value]
     for component in components:
         (template_dir / component).write_text("test content", encoding=temp_env.file_encoding)
 

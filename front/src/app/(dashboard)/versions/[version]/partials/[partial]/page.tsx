@@ -172,24 +172,44 @@ export default function PartialDetailPage() {
             파셜 상세 정보
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            생성일: {new Date(partial.created_at).toLocaleString()}
+            생성일: {new Date(partial.created_at).toLocaleString('ko-KR', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
           </Typography>
           <Typography variant="body2" color="text.secondary" paragraph>
-            수정일: {new Date(partial.updated_at).toLocaleString()}
+            수정일: {new Date(partial.updated_at).toLocaleString('ko-KR', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
           </Typography>
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              의존성
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {partial.dependencies.length > 0 ? (
-                partial.dependencies.map((dependency) => (
-                  <Chip key={dependency} label={dependency} />
-                ))
-              ) : (
-                <Typography color="text.secondary">의존성 없음</Typography>
-              )}
-            </Box>
+        </Paper>
+
+        <Paper sx={{ p: 3, bgcolor: 'background.default' }}>
+          <Typography variant="h6" gutterBottom>
+            의존성
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {partial.dependencies?.length > 0 ? (
+              partial.dependencies.map((dep) => (
+                <Chip
+                  key={dep}
+                  label={dep}
+                  variant="outlined"
+                  color="primary"
+                />
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                의존성 없음
+              </Typography>
+            )}
           </Box>
         </Paper>
 
@@ -237,6 +257,7 @@ export default function PartialDetailPage() {
           <Box sx={{ mt: 2 }}>
             <PartialEditor
               partial={partial}
+              version={params.version as string}
               onSave={handleEdit}
               onCancel={handleCloseEditDialog}
             />

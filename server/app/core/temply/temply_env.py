@@ -16,7 +16,7 @@ from app.core.temply.schema.mergers import merge
 from app.core.temply.schema.utils import generate_object
 
 
-class TemplateItems(str, Enum):
+class TemplateComponents(str, Enum):
     """템플릿 아이템"""
 
     HTML_EMAIL = "HTML_EMAIL"
@@ -367,6 +367,6 @@ class TemplyEnv:
             return False
         if not self.validate_template_name(component):
             return False
-        if component not in TemplateItems.__members__:
+        if component not in TemplateComponents.__members__:
             return False
         return True

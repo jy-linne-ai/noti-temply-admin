@@ -7,25 +7,31 @@ import {
   Typography,
   Chip,
   IconButton,
+  Autocomplete,
 } from '@mui/material';
 import { Add as AddIcon, Close as CloseIcon } from '@mui/icons-material';
 import { PartialTemplate } from '@/types/partial';
 import { CodeEditor } from '@/components/CodeEditor';
+import { useApi } from '@/lib/api';
 
 interface PartialEditorProps {
   isNew?: boolean;
   partial?: PartialTemplate;
+  version: string;
   onSave: (partial: Partial<PartialTemplate>) => Promise<void>;
   onCancel: () => void;
 }
 
-export function PartialEditor({ isNew = false, partial, onSave, onCancel }: PartialEditorProps) {
+export function PartialEditor({ isNew = false, partial, version, onSave, onCancel }: PartialEditorProps) {
+  const api = useApi();
   const [name, setName] = useState(partial?.name || '');
   const [description, setDescription] = useState(partial?.description || '');
   const [content, setContent] = useState(partial?.content || '');
   const [dependencies, setDependencies] = useState<string[]>(partial?.dependencies || []);
   const [newDependency, setNewDependency] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [availablePartials, setAvailablePartials] = useState<string[]>([]);
+  const [selectedPartial, setSelectedPartial] = useState<string | null>(null);
 
   useEffect(() => {
     if (partial) {
@@ -34,13 +40,27 @@ export function PartialEditor({ isNew = false, partial, onSave, onCancel }: Part
       setContent(partial.content || '');
       setDependencies(partial.dependencies || []);
     }
-  }, [partial]);
+    fetchAvailablePartials();
+  }, [partial, version]);
+
+  const fetchAvailablePartials = async () => {
+    try {
+      const data = await api.getAllPartials(version);
+      // 현재 파셜과 이미 의존성으로 추가된 파셜을 제외한 목록을 만듭니다
+      const available = data
+        .map(p => p.name)
+        .filter(name => name !== partial?.name && !dependencies?.includes(name));
+      setAvailablePartials(available);
+    } catch (err) {
+      console.error('Error fetching available partials:', err);
+    }
+  };
 
   const handleAddDependency = () => {
-    if (newDependency && !dependencies.includes(newDependency)) {
-      setDependencies([...dependencies, newDependency]);
-      setNewDependency('');
-    }
+    if (!selectedPartial) return;
+
+    setDependencies([...dependencies, selectedPartial]);
+    setSelectedPartial(null);
   };
 
   const handleRemoveDependency = (dependency: string) => {
@@ -96,21 +116,28 @@ export function PartialEditor({ isNew = false, partial, onSave, onCancel }: Part
           <Typography variant="subtitle1" gutterBottom>
             의존성
           </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-            <TextField
-              size="small"
-              value={newDependency}
-              onChange={(e) => setNewDependency(e.target.value)}
-              placeholder="의존성 추가"
-              fullWidth
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <Autocomplete
+              options={availablePartials}
+              value={selectedPartial}
+              onChange={(_, newValue) => setSelectedPartial(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="의존성 추가"
+                  variant="outlined"
+                  size="small"
+                  sx={{ minWidth: 200 }}
+                />
+              )}
             />
-            <IconButton
+            <Button
+              variant="contained"
               onClick={handleAddDependency}
-              disabled={!newDependency}
-              color="primary"
+              disabled={!selectedPartial}
             >
-              <AddIcon />
-            </IconButton>
+              추가
+            </Button>
           </Box>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
             {dependencies.map((dependency) => (

@@ -87,7 +87,7 @@ export default function LayoutsPage() {
           <Paper
             key={layout.name}
             onClick={() => router.push(`/versions/${params.version}/layouts/${layout.name}`)}
-            sx={{
+        sx={{
               p: 2,
               cursor: 'pointer',
               transition: 'all 0.2s ease-in-out',
@@ -102,14 +102,14 @@ export default function LayoutsPage() {
               <Typography variant="h6">{layout.name}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {layout.description}
-              </Typography>
-            </Box>
-          </Paper>
+            </Typography>
+                  </Box>
+      </Paper>
         ))}
       </Stack>
 
       {/* 생성 다이얼로그 */}
-      <Dialog
+      <Dialog 
         open={isCreateDialogOpen}
         onClose={handleCloseDialog}
         maxWidth="md"
@@ -134,7 +134,7 @@ export default function LayoutsPage() {
             }}
             onSubmit={handleCreate}
             onOpenChange={setIsCreateDialogOpen}
-          />
+            />
         </DialogContent>
       </Dialog>
 

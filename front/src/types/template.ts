@@ -30,13 +30,17 @@ export interface Variable {
 }
 
 export interface Template {
-  name: string;
-  description: string;
-  content: string;
+  description: string | null;
+  created_at: string | null;
+  created_by: string | null;
+  updated_at: string | null;
+  updated_by: string | null;
+  template: string;
+  component: string;
   layout: string;
-  created_at: string;
-  updated_at: string;
-  version: string;
+  partials: string[];
+  content: string;
+  dependencies?: string[];  // 의존성 목록
 }
 
 export interface CreateTemplateRequest {

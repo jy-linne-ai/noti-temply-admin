@@ -84,6 +84,11 @@ class TemplateRepository:
         """Get Template Names"""
         return await self.template_parser.get_template_names()
 
+    async def get_templates(self) -> List[TemplateComponent]:
+        """Get Templates"""
+        templates = await self.template_parser.get_templates()
+        return [TemplateComponent.model_validate(template) for template in templates]
+
     async def get_component_names_by_template(self, template: str) -> List[str]:
         """Get Component Names by Template"""
         return await self.template_parser.get_component_names_by_template(template)

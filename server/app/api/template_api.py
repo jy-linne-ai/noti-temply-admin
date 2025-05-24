@@ -18,15 +18,15 @@ from app.services.template_service import TemplateService
 router = APIRouter()
 
 
-@router.get("", response_model=List[str])
+@router.get("", response_model=List[TemplateComponent])
 async def list_templates(
     layout: Optional[str] = None,
     partial: Optional[str] = None,
     template_service: TemplateService = Depends(get_template_service),
     user: User = Depends(get_user),
-) -> List[str]:
+) -> List[TemplateComponent]:
     """카테고리 목록을 조회합니다."""
-    return await template_service.get_template_names()
+    return await template_service.get_templates()
 
 
 @router.post("/{template}/components", response_model=TemplateComponent)

@@ -14,6 +14,7 @@ import {
   TableRow,
   Alert,
   Snackbar,
+  Chip,
 } from '@mui/material';
 import { templateService } from '@/services/templateService';
 import { Template } from '@/types/template';
@@ -38,7 +39,7 @@ export default function TemplatesPage() {
   };
 
   const handleTemplateClick = (template: Template) => {
-    router.push(`/versions/${params.version}/templates/${template.name}`);
+    router.push(`/versions/${params.version}/templates/${template.template}/comports/${template.component}`);
   };
 
   return (
@@ -53,22 +54,48 @@ export default function TemplatesPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>이름</TableCell>
-              <TableCell>설명</TableCell>
+              <TableCell>템플릿</TableCell>
+              <TableCell>컴포넌트</TableCell>
               <TableCell>레이아웃</TableCell>
+              <TableCell>파셜</TableCell>
+              <TableCell>내용</TableCell>
+              <TableCell>생성일</TableCell>
+              <TableCell>수정일</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {templates.map((template) => (
               <TableRow
-                key={template.name}
+                key={`${template.template}-${template.component}`}
                 hover
                 onClick={() => handleTemplateClick(template)}
                 sx={{ cursor: 'pointer' }}
               >
-                <TableCell>{template.name}</TableCell>
-                <TableCell>{template.description}</TableCell>
-                <TableCell>{template.layout}</TableCell>
+                <TableCell>{template.template}</TableCell>
+                <TableCell>{template.component}</TableCell>
+                <TableCell>
+                  {template.layout ? (
+                    <Chip label={template.layout} size="small" color="primary" />
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell>
+                  {template.partials && template.partials.length > 0 ? (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      {template.partials.map((partial) => (
+                        <Chip key={partial} label={partial} size="small" />
+                      ))}
+                    </Box>
+                  ) : (
+                    '-'
+                  )}
+                </TableCell>
+                <TableCell sx={{ maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {template.content}
+                </TableCell>
+                <TableCell>{template.created_at ? new Date(template.created_at).toLocaleDateString() : '-'}</TableCell>
+                <TableCell>{template.updated_at ? new Date(template.updated_at).toLocaleDateString() : '-'}</TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -36,7 +36,7 @@ export function LayoutEditor({ layout, open, onOpenChange, onSubmit, isNew = fal
     <Dialog open={open} onClose={() => onOpenChange(false)} maxWidth="md" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>{isNew ? '새 레이아웃 생성' : '레이아웃 수정'}</DialogTitle>
-        <DialogContent>
+      <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
             <TextField
               label={
@@ -75,7 +75,7 @@ export function LayoutEditor({ layout, open, onOpenChange, onSubmit, isNew = fal
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => onOpenChange(false)}>취소</Button>
+            <Button onClick={() => onOpenChange(false)}>취소</Button>
           <Button 
             type="submit" 
             variant="contained" 
@@ -83,9 +83,9 @@ export function LayoutEditor({ layout, open, onOpenChange, onSubmit, isNew = fal
             disabled={!formData.name.trim() || !formData.content.trim()}
           >
             저장
-          </Button>
-        </DialogActions>
-      </form>
+            </Button>
+          </DialogActions>
+        </form>
     </Dialog>
   );
 } 

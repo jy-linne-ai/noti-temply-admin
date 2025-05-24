@@ -8,7 +8,7 @@ from app.core.exceptions import (
     TemplateAlreadyExistsError,
     TemplateNotFoundError,
 )
-from app.core.temply.temply_env import TemplateItems, TemplyEnv
+from app.core.temply.temply_env import TemplateComponents, TemplyEnv
 from app.models.common_model import User
 from app.models.layout_model import LayoutCreate
 from app.models.partial_model import PartialCreate
@@ -54,7 +54,7 @@ async def test_template_service_create_and_get(temp_env: TemplyEnv, user: User):
         user,
         "test",
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
             partials=[partial.name],
@@ -67,7 +67,7 @@ async def test_template_service_create_and_get(temp_env: TemplyEnv, user: User):
     assert created_component.partials == [partial.name]
     assert created_component.content == "test content"
     assert created_component.description == "test description"
-    assert created_component.component == TemplateItems.HTML_EMAIL.value
+    assert created_component.component == TemplateComponents.HTML_EMAIL.value
     assert created_component.template == "test"
     assert created_component.updated_at is not None
     assert created_component.updated_by == user.name
@@ -116,7 +116,7 @@ async def test_template_service_duplicate(temp_env: TemplyEnv, user: User):
 
     # 템플릿 생성
     created_component = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=layout.name,
         partials=[partial.name],
@@ -170,7 +170,7 @@ async def test_template_service_update(temp_env: TemplyEnv, user: User):
         user,
         "test",
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
             partials=[partial.name],
@@ -234,7 +234,7 @@ async def test_template_service_delete(temp_env: TemplyEnv, user: User):
         user,
         "test",
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
             partials=[partial.name],
@@ -277,7 +277,7 @@ async def test_template_service_nonexistent_layout(temp_env: TemplyEnv, user: Us
             user,
             "test",
             TemplateComponentCreate(
-                component=TemplateItems.HTML_EMAIL.value,
+                component=TemplateComponents.HTML_EMAIL.value,
                 description="test description",
                 layout="nonexistent_layout",
                 partials=[partial.name],
@@ -308,7 +308,7 @@ async def test_template_service_nonexistent_partial(temp_env: TemplyEnv, user: U
             user,
             "test",
             TemplateComponentCreate(
-                component=TemplateItems.HTML_EMAIL.value,
+                component=TemplateComponents.HTML_EMAIL.value,
                 description="test description",
                 layout=layout.name,
                 partials=["nonexistent_partial"],
@@ -360,7 +360,7 @@ async def test_template_service_update_layout(temp_env: TemplyEnv, user: User):
         user,
         "test",
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=old_layout.name,
             partials=[partial.name],
@@ -436,7 +436,7 @@ async def test_template_service_update_partials(temp_env: TemplyEnv, user: User)
         user,
         "test",
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
             partials=[p.name for p in old_partials],
@@ -498,7 +498,7 @@ async def test_template_service_with_multiple_partials(temp_env: TemplyEnv, user
         user,
         "test",
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
             partials=[p.name for p in partials],
@@ -560,7 +560,7 @@ async def test_template_service_with_nested_partials(temp_env: TemplyEnv, user: 
         user,
         "test",
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
             partials=[base_partial.name, dependent_partial.name],
@@ -581,7 +581,7 @@ async def test_template_service_with_nested_partials(temp_env: TemplyEnv, user: 
 async def test_template_service_get_template_names(temp_env: TemplyEnv, user: User):
     """템플릿 목록 조회 테스트"""
     template_service = TemplateService(TemplateRepository(temp_env))
-    component_name = TemplateItems.HTML_EMAIL.value
+    component_name = TemplateComponents.HTML_EMAIL.value
     created_component = TemplateComponentCreate(
         component=component_name,
         content="test content",
@@ -602,7 +602,7 @@ async def test_template_service_get_template_names(temp_env: TemplyEnv, user: Us
 async def test_template_service_get_components_by_template(temp_env: TemplyEnv, user: User):
     """템플릿별 템플릿 목록 조회 테스트"""
     template_service = TemplateService(TemplateRepository(temp_env))
-    component_name = TemplateItems.HTML_EMAIL.value
+    component_name = TemplateComponents.HTML_EMAIL.value
     created_component = TemplateComponentCreate(
         component=component_name,
         content="test content",
@@ -624,7 +624,7 @@ async def test_template_service_get_components_by_template(temp_env: TemplyEnv, 
 async def test_template_service_delete_components_by_template(temp_env: TemplyEnv, user: User):
     """템플릿별 템플릿 삭제 테스트"""
     template_service = TemplateService(TemplateRepository(temp_env))
-    component_name = TemplateItems.HTML_EMAIL.value
+    component_name = TemplateComponents.HTML_EMAIL.value
     created_component = TemplateComponentCreate(
         component=component_name,
         content="test content",

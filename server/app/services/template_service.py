@@ -52,8 +52,12 @@ class TemplateService:
         """Delete Component"""
         return await self.template_repository.delete_component(user, template, component)
 
+    async def get_templates(self) -> List[TemplateComponent]:
+        """Get Templates"""
+        return await self.template_repository.get_templates()
+
     async def get_template_names(
-        self, version: str, layout: Optional[str] = None, partial: Optional[str] = None
+        self, layout: Optional[str] = None, partial: Optional[str] = None
     ) -> List[str]:
         """템플릿 이름 목록을 조회합니다.
 
@@ -62,7 +66,7 @@ class TemplateService:
             layout: 레이아웃 이름 (선택)
             partial: 파셜 이름 (선택)
         """
-        return await self.template_repository.get_template_names(version, layout, partial)
+        return await self.template_repository.get_template_names()
 
     async def get_components_by_template(self, template: str) -> List[TemplateComponent]:
         """Get Components by Template"""

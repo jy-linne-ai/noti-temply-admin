@@ -4,7 +4,7 @@
 
 from typing import List
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Config(BaseSettings):
@@ -35,11 +35,9 @@ class Config(BaseSettings):
         """CORS origins 리스트"""
         return self.cors_origins.split(",")
 
-    class Config:
-        """설정"""
-
-        env_file = ".env"
-        env_parse_array_values = True  # 쉼표로 구분된 문자열을 리스트로 자동 변환
+    model_config = SettingsConfigDict(
+        env_file=".env",
+    )
 
 
 CONFIG = Config()

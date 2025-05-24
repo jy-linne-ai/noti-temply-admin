@@ -9,7 +9,7 @@ from app.core.exceptions import (
     TemplateNotFoundError,
 )
 from app.core.temply.parser.template_parser import TemplateParser
-from app.core.temply.temply_env import TemplateItems, TemplyEnv
+from app.core.temply.temply_env import TemplateComponents, TemplyEnv
 from app.models.common_model import User
 
 
@@ -82,7 +82,7 @@ async def test_template_parser_get_template_components(temp_env: TemplyEnv, user
     """템플릿 컴포넌트 목록 조회 테스트"""
     parser = TemplateParser(temp_env)
     template = "test_category"
-    component_name = TemplateItems.HTML_EMAIL.value
+    component_name = TemplateComponents.HTML_EMAIL.value
     content = "test content"
     description = "test description"
     layout = None
@@ -112,7 +112,7 @@ async def test_template_parser_get_template_components_by_template(temp_env: Tem
     """템플릿별 템플릿 컴포넌트 목록 조회 테스트"""
     parser = TemplateParser(temp_env)
     template = "test_category"
-    component_name = TemplateItems.HTML_EMAIL.value
+    component_name = TemplateComponents.HTML_EMAIL.value
     content = "test content"
     description = "test description"
     layout = None
@@ -143,7 +143,7 @@ async def test_template_parser_delete_template_components_by_template(
     """템플릿별 템플릿 컴포넌트 삭제 테스트"""
     parser = TemplateParser(temp_env)
     template = "test_category"
-    component_name = TemplateItems.HTML_EMAIL.value
+    component_name = TemplateComponents.HTML_EMAIL.value
     content = "test content"
     description = "test description"
     layout = None

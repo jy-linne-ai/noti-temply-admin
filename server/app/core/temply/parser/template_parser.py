@@ -151,12 +151,10 @@ class TemplateParser:
         for node in ast.body:
             # import 구문
             if isinstance(node, (nodes.Import, nodes.FromImport)):
-                template_name = node.template.as_const()
-                if template_name.startswith(f"{self.env.partials_dir_name}/"):
-                    partials.append(template_name.split("/")[-1])
+                partial_name = node.template.as_const()
+                if partial_name.startswith(f"{self.env.partials_dir_name}/"):
+                    partials.append(partial_name.split("/")[-1])
                     last_import_line = node.lineno
-            else:
-                break
 
         return partials, "\n".join(content.splitlines()[last_import_line:])
 
@@ -164,6 +162,11 @@ class TemplateParser:
     #     """Remove block wrapper from template content."""
     #     lines = content.splitlines()
     #     return "\n".join(lines[1:-1]) if len(lines) > 2 else ""
+
+    async def get_templates(self) -> List[TemplateComponentMetaData]:
+        """Get all templates."""
+        await self._ensure_initialized()
+        return self.nodes.values()
 
     async def get_template_names(self) -> List[str]:
         """Get all templates."""

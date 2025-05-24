@@ -8,7 +8,7 @@ from app.core.exceptions import (
     TemplateAlreadyExistsError,
     TemplateNotFoundError,
 )
-from app.core.temply.temply_env import TemplateItems, TemplyEnv
+from app.core.temply.temply_env import TemplateComponents, TemplyEnv
 from app.models.common_model import User
 from app.models.layout_model import LayoutCreate
 from app.models.partial_model import PartialCreate
@@ -40,7 +40,7 @@ async def test_template_repository(temp_env: TemplyEnv, user: User):
 
     template_repository = TemplateRepository(temp_env)
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
@@ -101,7 +101,7 @@ async def test_template_duplicate(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
@@ -143,7 +143,7 @@ async def test_template_update(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
@@ -245,7 +245,7 @@ async def test_template_delete(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
@@ -291,7 +291,7 @@ async def test_template_with_multiple_partials(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[p.name for p in partials],
@@ -356,7 +356,7 @@ async def test_template_with_nested_partials(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[base_partial.name, dependent_partial.name],
@@ -392,7 +392,7 @@ async def test_template_without_layout_and_partials(temp_env: TemplyEnv, user: U
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=None,
         partials=[],
@@ -427,7 +427,7 @@ async def test_template_without_layout(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=None,
         partials=[create_partial.name],
@@ -464,7 +464,7 @@ async def test_template_without_partials(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[],
@@ -507,7 +507,7 @@ async def test_template_with_single_partial(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[create_partial.name],
@@ -556,7 +556,7 @@ async def test_template_with_two_partials(temp_env: TemplyEnv, user: User):
     template_repository = TemplateRepository(temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
-        component=TemplateItems.HTML_EMAIL.value,
+        component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
         layout=create_layout.name,
         partials=[p.name for p in partials],
@@ -627,7 +627,7 @@ async def test_template_update_layout(temp_env: TemplyEnv, user: User):
         user,
         template,
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=old_layout.name,
             partials=[partial.name],
@@ -710,7 +710,7 @@ async def test_template_update_partials(temp_env: TemplyEnv, user: User):
         user,
         template,
         TemplateComponentCreate(
-            component=TemplateItems.HTML_EMAIL.value,
+            component=TemplateComponents.HTML_EMAIL.value,
             description="test description",
             layout=layout.name,
             partials=[p.name for p in old_partials],
@@ -767,7 +767,7 @@ async def test_template_nonexistent_layout(temp_env: TemplyEnv, user: User):
             user,
             template,
             TemplateComponentCreate(
-                component=TemplateItems.HTML_EMAIL.value,
+                component=TemplateComponents.HTML_EMAIL.value,
                 description="test description",
                 layout="nonexistent_layout",
                 partials=[partial.name],
@@ -796,7 +796,7 @@ async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
             user,
             template,
             TemplateComponentCreate(
-                component=TemplateItems.HTML_EMAIL.value,
+                component=TemplateComponents.HTML_EMAIL.value,
                 description="test description",
                 layout=layout.name,
                 partials=["nonexistent_partial"],
@@ -811,7 +811,7 @@ async def test_template_repository_get_templates(temp_env: TemplyEnv, user: User
 
     template_repository = TemplateRepository(temp_env)
     template = "test"
-    template_name = TemplateItems.HTML_EMAIL.value
+    template_name = TemplateComponents.HTML_EMAIL.value
     component_create = TemplateComponentCreate(
         component=template_name,
         content="test content",
@@ -834,7 +834,7 @@ async def test_template_repository_get_components_by_template(temp_env: TemplyEn
 
     template_repository = TemplateRepository(temp_env)
     template = "test"
-    template_name = TemplateItems.HTML_EMAIL.value
+    template_name = TemplateComponents.HTML_EMAIL.value
     component_create = TemplateComponentCreate(
         component=template_name,
         content="test content",
@@ -859,7 +859,7 @@ async def test_template_repository_delete_component_by_template(temp_env: Temply
 
     template_repository = TemplateRepository(temp_env)
     template = "test"
-    template_name = TemplateItems.HTML_EMAIL.value
+    template_name = TemplateComponents.HTML_EMAIL.value
     component_create = TemplateComponentCreate(
         component=template_name,
         content="test content",

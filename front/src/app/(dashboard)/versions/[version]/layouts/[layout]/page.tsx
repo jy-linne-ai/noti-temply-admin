@@ -63,7 +63,7 @@ export default function LayoutDetailPage() {
     fetchData();
   }, [params.version, params.layout]);
 
-  const fetchData = async () => {
+    const fetchData = async () => {
     try {
       const layoutData = await api.getLayout(params.version as string, params.layout as string);
       setLayout(layoutData);
@@ -109,10 +109,10 @@ export default function LayoutDetailPage() {
         }, 1000);
       } else {
         setError('레이아웃 삭제에 실패했습니다.');
-      }
+        }
       setIsDeleteDialogOpen(false);
-    }
-  };
+      }
+    };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -136,10 +136,10 @@ export default function LayoutDetailPage() {
           <Box>
             <Typography variant="h4" component="h1">
               {params.layout}
-            </Typography>
+      </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
-              {layout.description}
-            </Typography>
+        {layout.description}
+      </Typography>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -162,7 +162,7 @@ export default function LayoutDetailPage() {
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <Box>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" gutterBottom>
               레이아웃 상세 정보
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
@@ -174,7 +174,7 @@ export default function LayoutDetailPage() {
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle1" gutterBottom>
                 컨텐츠
-              </Typography>
+        </Typography>
               <Box sx={{ border: '1px solid #ccc', borderRadius: 1 }}>
                 <Tabs value={tabValue} onChange={handleTabChange}>
                   <Tab label="소스" />
@@ -189,14 +189,14 @@ export default function LayoutDetailPage() {
                 </TabPanel>
                 <TabPanel value={tabValue} index={1}>
                   <Box
-                    sx={{
-                      p: 2,
+          sx={{
+            p: 2,
                       minHeight: '500px',
                       border: '1px solid #eee',
-                      borderRadius: 1,
+            borderRadius: 1,
                       bgcolor: 'background.paper',
-                    }}
-                  >
+          }}
+        >
                     <div
                       dangerouslySetInnerHTML={{ __html: layout.content }}
                       style={{

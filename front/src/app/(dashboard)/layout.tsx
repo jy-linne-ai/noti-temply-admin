@@ -92,36 +92,36 @@ export default function DashboardLayout({
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
-        sx={{
+        <Box sx={{ display: 'flex' }}>
+          <AppBar
+            position="fixed"
+            sx={{
           width: { md: `calc(100% - ${drawerWidth}px)` },
           ml: { md: `${drawerWidth}px` },
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
+            }}
+          >
+            <Toolbar>
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                edge="start"
             onClick={handleDrawerToggle}
             sx={{ mr: 2, display: { md: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
+              >
+                <MenuIcon />
+              </IconButton>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {version && !isVersionPage && (
-              <Chip
+                  <Chip
                 label={
                   <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Box component="span" sx={{ fontSize: '0.9rem' }}>Version:</Box>
                     <Box 
                       component="span" 
-                      sx={{ 
+                    sx={{
                         color: '#FFD700',
                         fontWeight: 'bold',
-                        fontSize: '1.1rem',
+                      fontSize: '1.1rem',
                         textShadow: '0 0 2px rgba(0,0,0,0.3)',
                         letterSpacing: '0.5px'
                       }}
@@ -133,13 +133,13 @@ export default function DashboardLayout({
                 color="primary"
                 size="small"
                 onClick={handleVersionClick}
-                sx={{ 
+                    sx={{
                   backgroundColor: theme.palette.primary.main,
                   color: theme.palette.primary.contrastText,
                   fontWeight: 'bold',
                   padding: '0 12px',
-                  height: '32px',
-                  '&:hover': {
+                      height: '32px',
+                      '&:hover': {
                     backgroundColor: theme.palette.primary.dark,
                   },
                   cursor: 'pointer',
@@ -147,41 +147,41 @@ export default function DashboardLayout({
                   transition: 'all 0.2s ease-in-out',
                   '&:active': {
                     transform: 'scale(0.95)',
-                  },
-                }}
-              />
-            )}
-            <Typography variant="h6" noWrap component="div">
+                      },
+                    }}
+                  />
+                )}
+                <Typography variant="h6" noWrap component="div">
               {menuItems.find((item) => item.path === pathname)?.text || 'Noti Temply Admin'}
-            </Typography>
-          </Box>
-        </Toolbar>
-      </AppBar>
+                </Typography>
+              </Box>
+            </Toolbar>
+          </AppBar>
 
       <Box
         component="nav"
         sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
       >
-        <Drawer
+          <Drawer
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
           ModalProps={{
             keepMounted: true,
           }}
-          sx={{
+            sx={{
             display: { xs: 'block', md: 'none' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
-            },
-          }}
-        >
+              },
+            }}
+          >
           {drawer}
         </Drawer>
         <Drawer
           variant="permanent"
-          sx={{
+              sx={{
             display: { xs: 'none', md: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
@@ -191,20 +191,20 @@ export default function DashboardLayout({
           open
         >
           {drawer}
-        </Drawer>
+          </Drawer>
       </Box>
 
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              p: 3,
           width: { md: `calc(100% - ${drawerWidth}px)` },
-          mt: '64px',
-        }}
-      >
-        {children}
-      </Box>
-    </Box>
+              mt: '64px',
+            }}
+          >
+            {children}
+          </Box>
+        </Box>
   );
 }
