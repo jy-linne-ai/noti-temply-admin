@@ -101,6 +101,8 @@ export interface ApiClient {
   updatePartial: (version: string, partial: string, data: Partial<PartialTemplate>) => Promise<PartialTemplate>;
   deletePartial: (version: string, partial: string) => Promise<void>;
   getPartialChildren: (version: string, partial: string) => Promise<PartialTemplate[]>;
+  // getPartialParents: (version: string, partial: string) => Promise<PartialTemplate[]>;
+  getTemplateNames: (version: string) => Promise<string[]>;
 }
 
 export function useApi(): ApiClient {
@@ -163,6 +165,10 @@ export function useApi(): ApiClient {
     getPartialChildren: async (version: string, partial: string) => {
       const response = await api.get<PartialTemplate[]>(`/api/v1/versions/${version}/partials/${partial}/children`);
       return response.data;
+    },
+    getTemplateNames: async (version: string) => {
+      const response = await api.get<ApiResponse<string[]>>(`/api/v1/versions/${version}/template-names`);
+      return response.data.data;
     },
   };
 } 

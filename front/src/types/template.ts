@@ -37,10 +37,11 @@ export interface Template {
   updated_by: string | null;
   template: string;
   component: string;
-  layout: string;
+  layout: string | null;
   partials: string[];
   content: string;
   dependencies?: string[];  // 의존성 목록
+  isMapped?: boolean;
 }
 
 export interface CreateTemplateRequest {
@@ -51,6 +52,7 @@ export interface CreateTemplateRequest {
 export interface UpdateTemplateRequest {
   description?: string;
   content?: string;
+  partials?: string[];
 }
 
 export interface TemplateItem {

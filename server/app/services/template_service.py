@@ -56,9 +56,7 @@ class TemplateService:
         """Get Templates"""
         return await self.template_repository.get_templates()
 
-    async def get_template_names(
-        self, layout: Optional[str] = None, partial: Optional[str] = None
-    ) -> List[str]:
+    async def get_template_names(self) -> List[str]:
         """템플릿 이름 목록을 조회합니다.
 
         Args:

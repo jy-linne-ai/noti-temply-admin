@@ -8,7 +8,7 @@ from app.api import (
     layout_api,
     partial_api,
     template_api,
-    template_item_api,
+    template_component_api,
     template_name_api,
     version_api,
 )
@@ -37,11 +37,13 @@ def create_app() -> FastAPI:
     )
 
     router.include_router(
-        template_item_api.router, prefix="/template-components", tags=["template-components"]
+        template_component_api.router, prefix="/template-components", tags=["template-components"]
     )
     router.include_router(version_api.router, prefix="/versions", tags=["versions"])
     router.include_router(
-        template_name_api.router, prefix="/template-names", tags=["template-names"]
+        template_name_api.router,
+        prefix="/versions/{version}/template-names",
+        tags=["template-names"],
     )
 
     app.include_router(router, prefix="/api/v1")

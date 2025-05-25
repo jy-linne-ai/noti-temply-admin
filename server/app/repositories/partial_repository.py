@@ -44,12 +44,17 @@ class PartialRepository:
         partial = await self.partial_parser.get_partial(partial_name)
         return [Partial.model_validate(p) for p in partial.children]
 
+    async def get_parents(self, partial_name: str) -> List[Partial]:
+        """Get Parents"""
+        partial = await self.partial_parser.get_partial(partial_name)
+        return [Partial.model_validate(p) for p in partial.parents]
+
     async def update(self, user: User, partial_name: str, partial: PartialUpdate) -> Partial:
         """Update Partial"""
-        partial = await self.partial_parser.update(
+        partial_meta = await self.partial_parser.update(
             user, partial_name, partial.content, partial.description, partial.dependencies
         )
-        return Partial.model_validate(partial)
+        return Partial.model_validate(partial_meta)
 
     async def delete(self, user: User, partial_name: str) -> None:
         """Delete Partial"""

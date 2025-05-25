@@ -105,14 +105,14 @@ async def get_child_partials(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-@router.get("/{partial}/parents", response_model=List[Partial])
-async def get_parent_partials(
-    partial: str,
-    partial_service: PartialService = Depends(get_partial_service),
-    user: User = Depends(get_user),
-) -> List[Partial]:
-    """부모 파셜 목록을 조회합니다."""
-    try:
-        return await partial_service.get_parents(partial)
-    except PartialNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+# @router.get("/{partial}/parents", response_model=List[Partial])
+# async def get_parent_partials(
+#     partial: str,
+#     partial_service: PartialService = Depends(get_partial_service),
+#     user: User = Depends(get_user),
+# ) -> List[Partial]:
+#     """부모 파셜 목록을 조회합니다."""
+#     try:
+#         return await partial_service.get_parents(partial)
+#     except PartialNotFoundError as e:
+#         raise HTTPException(status_code=404, detail=str(e)) from e

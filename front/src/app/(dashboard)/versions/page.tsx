@@ -31,6 +31,7 @@ import {
   Check as CheckIcon,
   Close as CloseIcon,
   Lock as LockIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 
 interface Version {
@@ -40,6 +41,8 @@ interface Version {
 
 export default function VersionSelectPage() {
   const [versions, setVersions] = useState<Version[]>([]);
+  const [filteredVersions, setFilteredVersions] = useState<Version[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [newVersion, setNewVersion] = useState('');
@@ -51,10 +54,34 @@ export default function VersionSelectPage() {
     fetchVersions();
   }, []);
 
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      // Root 버전을 항상 최상단에 표시
+      const sortedVersions = [...versions].sort((a, b) => {
+        if (a.is_root && !b.is_root) return -1;
+        if (!a.is_root && b.is_root) return 1;
+        return 0;
+      });
+      setFilteredVersions(sortedVersions);
+    } else {
+      const filtered = versions.filter(version => 
+        version.version.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      // 검색 결과에서도 Root 버전을 최상단에 표시
+      const sortedFiltered = [...filtered].sort((a, b) => {
+        if (a.is_root && !b.is_root) return -1;
+        if (!a.is_root && b.is_root) return 1;
+        return 0;
+      });
+      setFilteredVersions(sortedFiltered);
+    }
+  }, [searchQuery, versions]);
+
   const fetchVersions = async () => {
     try {
       const response = await api.get('/api/v1/versions');
       setVersions(response.data);
+      setFilteredVersions(response.data);
     } catch (error) {
       console.error('Failed to fetch versions:', error);
     } finally {
@@ -153,6 +180,33 @@ export default function VersionSelectPage() {
             </Button>
           </Box>
 
+          <Box sx={{ mb: 3 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="버전 검색..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setSearchQuery('')}
+                    >
+                      <CloseIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Box>
+
           {isCreating && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: 'grey.50' }}>
               <Box display="flex" gap={1}>
@@ -191,24 +245,24 @@ export default function VersionSelectPage() {
             </Paper>
           )}
 
-          <List>
-            {versions.map((version) => (
+            <List>
+              {filteredVersions.map((version) => (
               <ListItem
-                key={version.version}
+                  key={version.version}
                 onClick={() => handleVersionSelect(version.version)}
-                sx={{
+                  sx={{
                   border: 1,
                   borderColor: 'divider',
                   borderRadius: 1,
-                  mb: 1,
+                    mb: 1,
                   cursor: 'pointer',
                   transition: 'all 0.2s ease-in-out',
-                  '&:hover': {
+                      '&:hover': {
                     bgcolor: 'action.hover',
                     transform: 'translateY(-2px)',
                     boxShadow: 1,
-                  },
-                }}
+                    },
+                  }}
                 secondaryAction={
                   <Tooltip title={version.is_root ? "Root 버전은 삭제할 수 없습니다" : "삭제"}>
                     <span>
@@ -227,24 +281,24 @@ export default function VersionSelectPage() {
                   </Tooltip>
                 }
               >
-                <ListItemText
-                  primary={
+                  <ListItemText
+                    primary={
                     <Box display="flex" alignItems="center" gap={1}>
                       <Typography variant="h6">{version.version}</Typography>
-                      {version.is_root && (
-                        <Chip
-                          label="Root"
-                          size="small"
-                          color="primary"
+                        {version.is_root && (
+                          <Chip
+                            label="Root"
+                            size="small"
+                            color="primary"
                           variant="outlined"
-                        />
-                      )}
-                    </Box>
-                  }
-                />
+                          />
+                        )}
+                      </Box>
+                    }
+                  />
               </ListItem>
-            ))}
-          </List>
+              ))}
+            </List>
         </CardContent>
       </Card>
 

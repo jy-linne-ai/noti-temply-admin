@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
@@ -15,11 +15,15 @@ import {
   DialogContent,
   Chip,
   IconButton,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
-import { Add as AddIcon, ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon } from '@mui/icons-material';
+import { Add as AddIcon, ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon, ViewList as ViewListIcon, Refresh as RefreshIcon, Search } from '@mui/icons-material';
 import { useApi } from '@/lib/api';
 import { PartialTemplate } from '@/types/partial';
 import { PartialEditor } from '@/components/features/partials/PartialEditor';
+import { PartialDrawer } from '@/components/partials/PartialDrawer';
+import { formatDate } from '@/lib/utils';
 
 interface PartialWithChildren extends PartialTemplate {
   children?: PartialWithChildren[];
@@ -34,10 +38,29 @@ export default function PartialsPage() {
   const [partials, setPartials] = useState<PartialWithChildren[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPartial, setSelectedPartial] = useState<PartialTemplate | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     fetchRootPartials();
   }, [params.version]);
+
+  // 필터링된 파셜 목록
+  const filteredPartials = useMemo(() => {
+    const filterPartial = (partial: PartialWithChildren): boolean => {
+      const matchesSearch = partial.name.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!partial.children) return matchesSearch;
+      
+      const filteredChildren = partial.children
+        .map(child => filterPartial(child))
+        .filter(Boolean);
+      
+      return matchesSearch || filteredChildren.length > 0;
+    };
+
+    return partials.filter(filterPartial);
+  }, [partials, searchQuery]);
 
   const fetchRootPartials = async () => {
     try {
@@ -48,8 +71,8 @@ export default function PartialsPage() {
           const children = await api.getPartialChildren(params.version as string, p.name);
           return {
             ...p,
-            isExpanded: false,
-            children: children.map(c => ({ ...c, isExpanded: false }))
+            isExpanded: true,
+            children: children.map(c => ({ ...c, isExpanded: true }))
           };
         })
       );
@@ -147,12 +170,17 @@ export default function PartialsPage() {
     setIsCreateDialogOpen(false);
   };
 
+  const handlePartialClick = (partial: PartialTemplate) => {
+    setSelectedPartial(partial);
+    setIsDrawerOpen(true);
+  };
+
   const renderPartial = (partial: PartialWithChildren, level: number = 0) => (
     <Box key={partial.name}>
       <Paper
-        onClick={() => router.push(`/versions/${params.version}/partials/${partial.name}`)}
+        onClick={() => handlePartialClick(partial)}
         sx={{
-          p: 2,
+          p: 1.5,
           cursor: 'pointer',
           transition: 'all 0.2s ease-in-out',
           '&:hover': {
@@ -160,7 +188,7 @@ export default function PartialsPage() {
             transform: 'translateY(-2px)',
             boxShadow: (theme) => theme.shadows[4],
           },
-          ml: level * 4,
+          ml: level * 2,
           borderLeft: level > 0 ? '2px solid' : 'none',
           borderColor: 'primary.main',
           position: 'relative',
@@ -169,14 +197,14 @@ export default function PartialsPage() {
             position: 'absolute',
             left: -2,
             top: '50%',
-            width: 16,
+            width: 8,
             height: 2,
             bgcolor: 'primary.main',
           } : {},
         }}
       >
         <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <IconButton
               size="small"
               onClick={(e) => {
@@ -192,22 +220,36 @@ export default function PartialsPage() {
             >
               {partial.isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
-            <Typography variant="h6">{partial.name}</Typography>
-            {partial.children && partial.children.length > 0 && (
-              <Chip
-                label={`${partial.children.length}개의 하위 파셜`}
-                size="small"
-                color="primary"
-                variant="outlined"
-                sx={{ ml: 1 }}
-              />
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+              <Typography variant="h6" sx={{ fontWeight: 500 }}>{partial.name}</Typography>
+              {partial.description && (
+                <Typography variant="body2" color="text.secondary">
+                  - {partial.description}
+                </Typography>
+              )}
+              {partial.children && partial.children.length > 0 && (
+                <Chip
+                  label={`${partial.children.length}개의 하위 파셜`}
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ ml: 'auto' }}
+                />
+              )}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <Typography variant="caption" color="text.secondary">
+                  생성: {formatDate(partial.created_at)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  수정: {formatDate(partial.updated_at)}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {partial.description}
-          </Typography>
           {partial.dependencies && partial.dependencies.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 1 }}>
               {partial.dependencies.map((dep) => (
                 <Chip
                   key={dep}
@@ -222,7 +264,7 @@ export default function PartialsPage() {
         </Box>
       </Paper>
       {partial.isExpanded && partial.children && (
-        <Box sx={{ mt: 1 }}>
+        <Box sx={{ mt: 0.5 }}>
           {partial.children.map(child => renderPartial(child, level + 1))}
         </Box>
       )}
@@ -231,21 +273,61 @@ export default function PartialsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          파셜 목록
+          파셜 관리
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setIsCreateDialogOpen(true)}
-        >
-          파셜 추가
-        </Button>
+        <Stack direction="row" spacing={2}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setPartials([]);
+              fetchRootPartials();
+            }}
+            startIcon={<RefreshIcon />}
+          >
+            새로고침
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
+            파셜 추가
+          </Button>
+        </Stack>
       </Box>
 
-      <Stack spacing={2}>
-        {partials.map(partial => renderPartial(partial))}
+      {/* 필터 섹션 */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <TextField
+            placeholder="파셜 이름 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            size="small"
+            sx={{ width: 300 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {searchQuery && (
+            <Button
+              size="small"
+              onClick={() => setSearchQuery('')}
+            >
+              필터 초기화
+            </Button>
+          )}
+        </Stack>
+      </Paper>
+
+      <Stack spacing={0.5}>
+        {filteredPartials.map(partial => renderPartial(partial))}
       </Stack>
 
       {/* 생성 다이얼로그 */}
@@ -281,6 +363,14 @@ export default function PartialsPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Drawer */}
+      <PartialDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        selectedPartial={selectedPartial}
+        version={params.version as string}
+      />
 
       <Snackbar
         open={!!error}

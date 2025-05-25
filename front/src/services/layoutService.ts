@@ -12,16 +12,16 @@ export const layoutService = {
   },
   createLayout: async (version: string, data: Partial<Layout>): Promise<Layout> => {
     const api = useApi();
-    const response = await api.post(`/versions/${version}/layouts`, data);
+    const response = await api.createLayout(version, data);
     return response.data;
   },
   updateLayout: async (version: string, layoutName: string, data: Partial<Layout>): Promise<Layout> => {
     const api = useApi();
-    const response = await api.put(`/versions/${version}/layouts/${layoutName}`, data);
+    const response = await api.updateLayout(version, layoutName, data);
     return response.data;
   },
   deleteLayout: async (version: string, layoutName: string): Promise<void> => {
     const api = useApi();
-    await api.delete(`/versions/${version}/layouts/${layoutName}`);
+    await api.deleteLayout(version, layoutName);
   },
 }; 

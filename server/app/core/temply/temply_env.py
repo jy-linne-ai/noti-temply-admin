@@ -19,12 +19,12 @@ from app.core.temply.schema.utils import generate_object
 class TemplateComponents(str, Enum):
     """템플릿 아이템"""
 
+    TEXT_EMAIL_SUBJECT = "TEXT_EMAIL_SUBJECT"
     HTML_EMAIL = "HTML_EMAIL"
     TEXT_EMAIL = "TEXT_EMAIL"
-    TEXT_WEBPUSH = "TEXT_WEBPUSH"
-    TEXT_EMAIL_SUBJECT = "TEXT_EMAIL_SUBJECT"
     TEXT_WEBPUSH_TITLE = "TEXT_WEBPUSH_TITLE"
     TEXT_WEBPUSH_URL = "TEXT_WEBPUSH_URL"
+    TEXT_WEBPUSH = "TEXT_WEBPUSH"
 
 
 class TemplyEnv:
@@ -34,7 +34,7 @@ class TemplyEnv:
         self._config: Config = config
         self.version: str | None = version
         self.pr_version: str | None = pr_version
-        self.applied_version: str = None
+        self.applied_version: str | None = None
         if config.is_dev() and pr_version:
             self.applied_version = pr_version
         else:

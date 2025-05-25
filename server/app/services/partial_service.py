@@ -22,6 +22,10 @@ class PartialService:
         """Get Children"""
         return await self.repository.get_children(partial_name)
 
+    # async def get_parents(self, partial_name: str) -> List[Partial]:
+    #     """Get Parents"""
+    #     return await self.repository.get_parents(partial_name)
+
     async def create(self, user: User, partial_create: PartialCreate) -> Partial:
         """Create Partial"""
         return await self.repository.create(user, partial_create)
@@ -38,6 +42,6 @@ class PartialService:
         """Update Partial"""
         return await self.repository.update(user, partial_name, partial_update)
 
-    async def delete(self, user: User, partial_name: str) -> bool:
+    async def delete(self, user: User, partial_name: str) -> None:
         """Delete Partial"""
-        return await self.repository.delete(user, partial_name)
+        await self.repository.delete(user, partial_name)

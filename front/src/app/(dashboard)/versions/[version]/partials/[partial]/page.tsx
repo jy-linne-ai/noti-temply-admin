@@ -60,9 +60,11 @@ export default function PartialDetailPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  const [children, setChildren] = useState<PartialTemplate[]>([]);
 
   useEffect(() => {
     fetchPartial();
+    fetchChildren();
   }, [params.version, params.partial]);
 
   const fetchPartial = async () => {
@@ -72,6 +74,16 @@ export default function PartialDetailPage() {
     } catch (err) {
       console.error('Error fetching partial:', err);
       setError('파셜을 불러오는데 실패했습니다.');
+    }
+  };
+
+  const fetchChildren = async () => {
+    try {
+      const response = await api.getPartialChildren(params.version as string, params.partial as string);
+      setChildren(response);
+    } catch (err) {
+      console.error('Error fetching children:', err);
+      setError('하위 파셜을 불러오는데 실패했습니다.');
     }
   };
 
@@ -210,6 +222,30 @@ export default function PartialDetailPage() {
             ) : (
               <Typography variant="body2" color="text.secondary">
                 의존성 없음
+              </Typography>
+            )}
+          </Box>
+        </Paper>
+
+        <Paper sx={{ p: 3, bgcolor: 'background.default' }}>
+          <Typography variant="h6" gutterBottom>
+            참조 중인 파셜
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {children.length > 0 ? (
+              children.map((child) => (
+                <Chip
+                  key={child.name}
+                  label={child.name}
+                  variant="outlined"
+                  color="info"
+                  onClick={() => router.push(`/versions/${params.version}/partials/${child.name}`)}
+                  sx={{ cursor: 'pointer' }}
+                />
+              ))
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                참조 중인 파셜 없음
               </Typography>
             )}
           </Box>

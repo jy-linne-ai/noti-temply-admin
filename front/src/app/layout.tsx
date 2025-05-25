@@ -16,12 +16,12 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
-        <AppRouterCacheProvider>
+            <AppRouterCacheProvider>
           <ThemeProvider theme={createAppTheme(false)}>
-            {children}
-            <Toaster />
+                {children}
+              <Toaster />
           </ThemeProvider>
-        </AppRouterCacheProvider>
+            </AppRouterCacheProvider>
       </body>
     </html>
   );
