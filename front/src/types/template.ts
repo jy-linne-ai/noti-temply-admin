@@ -14,21 +14,6 @@ export interface Layout extends BaseEntity {
   template: string;  // 레이아웃 HTML 템플릿
 }
 
-export interface Part extends BaseEntity {
-  parent: string | null;
-  children: string[];
-  variables: Variable[];
-  template: string;  // 파츠 HTML 템플릿
-}
-
-export interface Variable {
-  name: string;
-  type: 'string' | 'number' | 'date' | 'boolean';
-  required: boolean;
-  defaultValue?: any;
-  description?: string;
-}
-
 export interface Template {
   description: string | null;
   created_at: string | null;

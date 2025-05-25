@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Box,
@@ -20,16 +20,27 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  IconButton,
+  DialogContentText,
+  DialogActions,
+  CircularProgress,
 } from '@mui/material';
 import { 
   Search,
   ViewList as ViewListIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useApi } from '@/lib/api';
 import { Layout } from '@/types/layout';
-import { LayoutEditor } from '@/components/features/layouts/LayoutEditor';
 import { LayoutDrawer } from '@/components/layouts/LayoutDrawer';
 import { formatDate } from '@/lib/utils';
 
@@ -40,53 +51,121 @@ export default function LayoutsPage() {
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedLayout, setSelectedLayout] = useState<Layout | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const isInitialized = useRef(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
 
-    const fetchLayouts = async () => {
-      try {
-      const data = await api.getLayouts(params.version as string);
-      setLayouts(data);
-    } catch (err) {
-      console.error('Error fetching layouts:', err);
-      setError('레이아웃 목록을 불러오는데 실패했습니다.');
-      }
-    };
+  const fetchLayouts = async () => {
+    try {
+      const layouts = await api.getLayouts(params.version as string);
+      
+      const layoutsWithComponents = await Promise.all(
+        layouts.map(async (layout) => {
+          try {
+            const components = await api.getLayout(params.version as string, layout.name);
+            return {
+              ...layout,
+              components: components || []
+            };
+          } catch (err) {
+            console.error(`Error fetching components for layout ${layout.name}:`, err);
+            return {
+              ...layout,
+              components: []
+            };
+          }
+        })
+      );
+      
+      setLayouts(layoutsWithComponents);
+    } catch (error) {
+      console.error('Error fetching layouts:', error);
+      setError('레이아웃을 불러오는데 실패했습니다. 서버가 실행 중인지 확인해주세요.');
+      setLayouts([]);
+    }
+  };
 
   useEffect(() => {
-    fetchLayouts();
-  }, [params.version]);
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      fetchLayouts();
+    }
+  }, [fetchLayouts]);
+
+  const handleRefresh = useCallback(async () => {
+    await fetchLayouts();
+  }, [fetchLayouts]);
 
   const handleLayoutClick = (layout: Layout) => {
     setSelectedLayout(layout);
     setIsDrawerOpen(true);
   };
 
-  const filteredLayouts = layouts.filter(layout =>
-    layout.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleEdit = useCallback((layout: Layout) => {
+    setSelectedLayout(layout);
+    setIsDrawerOpen(true);
+  }, []);
 
-  const handleCreate = async (layout: Partial<Layout>) => {
+  const handleAdd = useCallback(() => {
+    setSelectedLayout(null);
+    setIsDrawerOpen(true);
+  }, []);
+
+  const handleDelete = async (layout: Layout) => {
     try {
-      const createdLayout = await api.createLayout(params.version as string, {
-        ...layout,
-        version: params.version as string,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+      setIsLoading(true);
+      await api.deleteLayout(params.version as string, layout.name);
+      await fetchLayouts();
+      setSnackbar({
+        open: true,
+        message: '레이아웃이 삭제되었습니다.',
+        severity: 'success'
       });
-      setIsCreateDialogOpen(false);
-      fetchLayouts();
-      router.push(`/versions/${params.version}/layouts/${createdLayout.name}`);
-    } catch (err) {
-      console.error('Error creating layout:', err);
-      setError('레이아웃 생성에 실패했습니다.');
+    } catch (error) {
+      console.error('Error deleting layout:', error);
+      setSnackbar({
+        open: true,
+        message: '레이아웃 삭제에 실패했습니다.',
+        severity: 'error'
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleCloseDialog = () => {
-    setIsCreateDialogOpen(false);
+  const handleSave = async (layout: Layout) => {
+    try {
+      setIsLoading(true);
+      await api.updateLayout(params.version as string, layout.name, layout);
+      await fetchLayouts();
+      setSelectedLayout(null);
+      setIsDrawerOpen(false);
+      setSnackbar({
+        open: true,
+        message: '레이아웃이 저장되었습니다.',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error saving layout:', error);
+      setSnackbar({
+        open: true,
+        message: '레이아웃 저장에 실패했습니다.',
+        severity: 'error'
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const filteredLayouts = layouts.filter(layout =>
+    layout.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <Box sx={{ p: 3 }}>
@@ -97,21 +176,18 @@ export default function LayoutsPage() {
         <Stack direction="row" spacing={2}>
           <Button
             variant="outlined"
-            onClick={() => {
-              setLayouts([]);
-              fetchLayouts();
-            }}
+            onClick={handleRefresh}
             startIcon={<RefreshIcon />}
           >
             새로고침
           </Button>
-        <Button
-          variant="contained"
+          <Button
+            variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => setIsCreateDialogOpen(true)}
-        >
+            onClick={handleAdd}
+          >
             레이아웃 추가
-        </Button>
+          </Button>
         </Stack>
       </Box>
 
@@ -158,7 +234,7 @@ export default function LayoutsPage() {
                 transform: 'translateY(-2px)',
                 boxShadow: (theme) => theme.shadows[4],
               },
-              borderLeft: '2px solid',
+              borderLeft: selectedLayout?.name === layout.name ? '2px solid' : 'none',
               borderColor: 'primary.main',
             }}
           >
@@ -188,51 +264,29 @@ export default function LayoutsPage() {
         ))}
       </Stack>
 
-      {/* 생성 다이얼로그 */}
-      <Dialog 
-        open={isCreateDialogOpen}
-        onClose={handleCloseDialog}
-        maxWidth="md"
-        fullWidth
-        keepMounted={false}
-        disablePortal
-        disableEnforceFocus
-        disableAutoFocus
-      >
-        <DialogTitle>레이아웃 생성</DialogTitle>
-        <DialogContent dividers>
-          <LayoutEditor
-            isNew={true}
-            layout={{
-              name: '',
-              description: '',
-              content: '',
-              version: params.version as string,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }}
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-            onSubmit={handleCreate}
-            />
-        </DialogContent>
-      </Dialog>
-
       {/* 레이아웃 상세 Drawer */}
       <LayoutDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         selectedLayout={selectedLayout}
         version={params.version as string}
-            />
+        onSave={handleSave}
+        onNew={handleAdd}
+        onLayoutClick={handleLayoutClick}
+        onDelete={handleDelete}
+      />
 
+      {/* 스낵바 */}
       <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={() => setError(null)}
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
       >
-        <Alert severity="error" onClose={() => setError(null)}>
-          {error}
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
         </Alert>
       </Snackbar>
     </Box>

@@ -16,39 +16,42 @@ import {
   Tabs,
   Tab,
   CircularProgress,
+  TextField,
 } from '@mui/material';
 import { 
   Edit as EditIcon,
   Close as CloseIcon,
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
+  Save as SaveIcon,
 } from '@mui/icons-material';
 import { Template } from '@/types/template';
 import { HtmlEditor } from '@/components/Editor';
-import { templateService } from '@/services/templateService';
+import { Preview } from '@/components/Preview';
+import { useApi } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 
-interface TemplateComponentDrawerProps {
+interface TemplateDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  selectedComponent: Template | null;
   selectedTemplateName: string;
   selectedComponentName: string;
-  version: string;
-  selectedComponent: Template | null;
   drawerComponents: Template[];
-  onComponentClick: (template: string, component: Template) => Promise<void>;
+  onComponentClick: (template: string, component: Template) => void;
+  version: string;
 }
 
-export function TemplateComponentDrawer({
+export function TemplateDrawer({
   isOpen,
   onClose,
+  selectedComponent,
   selectedTemplateName,
   selectedComponentName,
-  version,
-  selectedComponent,
   drawerComponents,
   onComponentClick,
-}: TemplateComponentDrawerProps) {
+  version,
+}: TemplateDrawerProps) {
   const router = useRouter();
   const [contentTab, setContentTab] = React.useState(0);
   const [componentListTab, setComponentListTab] = React.useState(0);
@@ -57,6 +60,7 @@ export function TemplateComponentDrawer({
   const [allComponents, setAllComponents] = useState<string[]>([]);
   const [mappedComponents, setMappedComponents] = useState<Template[]>([]);
   const [componentTypes, setComponentTypes] = useState<string[]>([]);
+  const [previewContent, setPreviewContent] = useState<string>('');
   
   // 메모리 캐시를 위한 ref
   const cacheRef = useRef<{
@@ -65,18 +69,34 @@ export function TemplateComponentDrawer({
     types: string[];
     lastVersion: string;
     lastTemplate: string;
+    isLoading: boolean;
   }>({
     components: [],
     mapped: [],
     types: [],
     lastVersion: '',
-    lastTemplate: ''
+    lastTemplate: '',
+    isLoading: false
   });
+
+  // selectedComponent가 변경될 때 previewContent 업데이트
+  useEffect(() => {
+    if (selectedComponent) {
+      setPreviewContent(selectedComponent.content || '');
+    } else {
+      setPreviewContent('');
+    }
+  }, [selectedComponent]);
+
+  const api = useApi();
 
   // 컴포넌트 목록 로드
   useEffect(() => {
     const loadComponents = async () => {
       if (!isOpen) return;
+      
+      // 이미 로딩 중이면 중복 호출 방지
+      if (cacheRef.current.isLoading) return;
       
       // 캐시된 데이터가 있고, 버전과 템플릿이 동일한 경우 캐시 사용
       if (
@@ -91,18 +111,20 @@ export function TemplateComponentDrawer({
         return;
       }
       
+      cacheRef.current.isLoading = true;
       setIsLoading(true);
       setError(null);
       
       try {
-        // 1. 모든 가능한 컴포넌트 목록 가져오기
-        const componentNames = await templateService.getAllTemplateComponents();
+        // 병렬로 API 요청 실행
+        const [componentNames, components] = await Promise.all([
+          api.getAllTemplateComponents(),
+          api.getTemplateComponents(version, selectedTemplateName)
+        ]);
         
-        // 2. 현재 템플릿의 매핑된 컴포넌트 가져오기
-        const components = await templateService.getTemplateComponents(version, selectedTemplateName);
         const mapped = components.filter(comp => comp.content && comp.content.trim() !== '');
         
-        // 3. 컴포넌트 타입 추출 (예: HTML_EMAIL, TEXT_EMAIL)
+        // 컴포넌트 타입 추출 (예: HTML_EMAIL, TEXT_EMAIL)
         const types = new Set<string>();
         componentNames.forEach(name => {
           const type = name.split('_')[0];
@@ -115,7 +137,8 @@ export function TemplateComponentDrawer({
           mapped,
           types: Array.from(types).sort(),
           lastVersion: version,
-          lastTemplate: selectedTemplateName
+          lastTemplate: selectedTemplateName,
+          isLoading: false
         };
         
         // 상태 업데이트
@@ -127,17 +150,68 @@ export function TemplateComponentDrawer({
         const selectedIndex = componentNames.indexOf(selectedComponentName);
         if (selectedIndex !== -1) {
           setComponentListTab(selectedIndex);
+          // 선택된 컴포넌트가 매핑되어 있으면 해당 컴포넌트 사용
+          const selectedComponent = mapped.find(c => c.component === selectedComponentName);
+          if (selectedComponent) {
+            onComponentClick(selectedTemplateName, selectedComponent);
+          } else {
+            // 매핑되지 않은 컴포넌트인 경우 빈 컴포넌트 객체 생성
+            const emptyComponent = {
+              template: selectedTemplateName,
+              component: selectedComponentName,
+              content: '',
+              description: null,
+              partials: [],
+              created_at: null,
+              created_by: null,
+              updated_at: null,
+              updated_by: null,
+              layout: null,
+              isMapped: false
+            };
+            onComponentClick(selectedTemplateName, emptyComponent);
+          }
         }
       } catch (err) {
         console.error('Error loading components:', err);
-        setError('컴포넌트 정보를 불러오는데 실패했습니다.');
+        setError('컴포넌트 목록을 불러오는데 실패했습니다.');
       } finally {
+        cacheRef.current.isLoading = false;
         setIsLoading(false);
       }
     };
 
     loadComponents();
-  }, [isOpen, version, selectedTemplateName, selectedComponentName]);
+  }, [isOpen, version, selectedTemplateName, selectedComponentName, onComponentClick, api]);
+
+  // 탭 변경 시 컴포넌트 선택
+  const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
+    setComponentListTab(newValue);
+    const componentName = allComponents[newValue];
+    
+    // 매핑된 컴포넌트에서 찾기
+    const component = mappedComponents.find(comp => comp.component === componentName);
+    
+    if (component) {
+      onComponentClick(selectedTemplateName, component);
+    } else {
+      // 매핑되지 않은 컴포넌트인 경우 빈 컴포넌트 객체 생성
+      const emptyComponent = {
+        template: selectedTemplateName,
+        component: componentName,
+        content: '',
+        description: null,
+        partials: [],
+        created_at: null,
+        created_by: null,
+        updated_at: null,
+        updated_by: null,
+        layout: null,
+        isMapped: false
+      };
+      onComponentClick(selectedTemplateName, emptyComponent);
+    }
+  }, [allComponents, mappedComponents, onComponentClick, selectedTemplateName]);
 
   // Drawer가 닫힐 때 캐시 유지 (다음 열 때 재사용)
   useEffect(() => {
@@ -155,30 +229,6 @@ export function TemplateComponentDrawer({
       }
     }
   }, [isOpen, selectedComponentName, allComponents]);
-
-  // 탭 변경 시 컴포넌트 선택
-  const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
-    setComponentListTab(newValue);
-    const componentName = allComponents[newValue];
-    const component = mappedComponents.find(comp => comp.component === componentName);
-    if (component) {
-      onComponentClick(selectedTemplateName, component);
-    } else {
-      onComponentClick(selectedTemplateName, {
-        template: selectedTemplateName,
-        component: componentName,
-        content: '',
-        description: null,
-        partials: [],
-        created_at: null,
-        created_by: null,
-        updated_at: null,
-        updated_by: null,
-        layout: null,
-        isMapped: false
-      });
-    }
-  }, [allComponents, mappedComponents, onComponentClick, selectedTemplateName]);
 
   // 탭 렌더링을 메모이제이션
   const renderTab = useCallback((componentName: string) => {
@@ -222,6 +272,28 @@ export function TemplateComponentDrawer({
     );
   }, [mappedComponents]);
 
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      const updatedComponent = await api.updateTemplateComponent(
+        version,
+        selectedTemplateName,
+        selectedComponentName,
+        {
+          content: previewContent,
+          description: selectedComponent?.description?.trim() || undefined,
+        }
+      );
+      onComponentClick(selectedTemplateName, updatedComponent);
+      onClose();
+    } catch (err) {
+      console.error('Error saving component:', err);
+      setError('컴포넌트 저장에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -252,7 +324,12 @@ export function TemplateComponentDrawer({
             <Typography color="error">{error}</Typography>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 80px)' }}>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            height: 'calc(100% - 80px)',
+            overflow: 'hidden'
+          }}>
             {/* 컴포넌트 탭 */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
               <Tabs 
@@ -267,9 +344,14 @@ export function TemplateComponentDrawer({
             </Box>
 
             {/* 컴포넌트 상세 정보 */}
-            <Box sx={{ flex: 1, overflow: 'auto' }}>
+            <Box sx={{ 
+              flex: 1, 
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
               {selectedComponent && (
-                <Stack spacing={3}>
+                <Stack spacing={3} sx={{ flex: 1, minHeight: 0 }}>
                   {/* 기본 정보 테이블 */}
                   <Paper variant="outlined" sx={{ p: 2 }}>
                     <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 1 }}>
@@ -281,18 +363,56 @@ export function TemplateComponentDrawer({
                         {selectedComponent.description || '설명이 없습니다.'}
                       </Typography>
 
+                      {/* 생성/수정 정보 */}
+                      <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                        생성
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <Typography variant="body2">
+                          {selectedComponent ? formatDate(selectedComponent.created_at) : '-'}
+                        </Typography>
+                        {selectedComponent?.created_by && (
+                          <Chip
+                            label={`by ${selectedComponent.created_by}`}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                          />
+                        )}
+                      </Box>
+
+                      <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                        수정
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <Typography variant="body2">
+                          {selectedComponent ? formatDate(selectedComponent.updated_at) : '-'}
+                        </Typography>
+                        {selectedComponent?.updated_by && (
+                          <Chip
+                            label={`by ${selectedComponent.updated_by}`}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                          />
+                        )}
+                      </Box>
+
                       {/* 레이아웃 */}
                       <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
                         레이아웃
                       </Typography>
                       <Box>
                         {selectedComponent.layout ? (
-                          <Chip
-                            label={selectedComponent.layout}
-                            color="primary"
-                            variant="outlined"
-                            size="small"
-                          />
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Chip
+                              label={selectedComponent.layout}
+                              color="primary"
+                              variant="outlined"
+                              size="small"
+                              sx={{ alignSelf: 'flex-start' }}
+                            />
+                          </Box>
                         ) : (
                           <Typography color="text.secondary" variant="body2">레이아웃이 없습니다.</Typography>
                         )}
@@ -318,31 +438,6 @@ export function TemplateComponentDrawer({
                           <Typography color="text.secondary" variant="body2">사용된 파셜이 없습니다.</Typography>
                         )}
                       </Box>
-
-                      {/* 생성/수정 정보 */}
-                      <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                        생성
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Typography variant="body2">
-                          {selectedComponent ? formatDate(selectedComponent.created_at) : '-'}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {selectedComponent?.created_by ? `by ${selectedComponent.created_by}` : ''}
-                        </Typography>
-                      </Box>
-
-                      <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                        수정
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Typography variant="body2">
-                          {selectedComponent ? formatDate(selectedComponent.updated_at) : '-'}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {selectedComponent?.updated_by ? `by ${selectedComponent.updated_by}` : ''}
-                        </Typography>
-                      </Box>
                     </Box>
                   </Paper>
 
@@ -360,46 +455,44 @@ export function TemplateComponentDrawer({
                       </Box>
 
                       {contentTab === 0 && (
-                        <Box>
+                        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                           <Typography variant="subtitle1" color="text.secondary" gutterBottom>
                             소스
                           </Typography>
                           <Paper 
                             variant="outlined" 
                             sx={{ 
-                              height: '500px',
+                              flex: 1,
+                              minHeight: 0,
                               overflow: 'hidden'
                             }}
                           >
-                            <HtmlEditor
-                              value={selectedComponent.content}
-                              onChange={() => {}}
-                              readOnly
-                            />
+                            {selectedComponent && (
+                              <HtmlEditor
+                                key={selectedComponent.component}
+                                value={selectedComponent.content}
+                                onChange={(value) => {
+                                  setPreviewContent(value);
+                                }}
+                                type="template"
+                                height="100%"
+                              />
+                            )}
                           </Paper>
                         </Box>
                       )}
 
                       {contentTab === 1 && (
-                        <Box>
-                          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                            프리뷰
-                          </Typography>
-                          <Paper 
-                            variant="outlined" 
-                            sx={{ 
-                              p: 2,
-                              height: '500px',
-                              overflow: 'auto',
-                              bgcolor: 'white'
-                            }}
-                          >
-                            <div dangerouslySetInnerHTML={{ __html: selectedComponent.content }} />
-                          </Paper>
+                        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                          <Preview
+                            content={previewContent}
+                            title="템플릿 프리뷰"
+                            type="template"
+                          />
                         </Box>
                       )}
 
-                      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
                         <Button
                           variant="outlined"
                           startIcon={<EditIcon />}

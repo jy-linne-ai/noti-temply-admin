@@ -34,15 +34,16 @@ import {
   ViewList as ViewListIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { templateService } from '@/services/templateService';
+import { useApi } from '@/lib/api';
 import { Template } from '@/types/template';
 import { HtmlEditor } from '@/components/Editor';
-import { TemplateComponentDrawer } from '@/components/templates/TemplateComponentDrawer';
+import { TemplateDrawer } from '@/components/templates/TemplateDrawer';
 import { formatDate } from '@/lib/utils';
 
 export default function TemplatesPage() {
   const params = useParams();
   const router = useRouter();
+  const api = useApi();
   const [templates, setTemplates] = useState<string[]>([]);
   const [expandedTemplates, setExpandedTemplates] = useState<Record<string, boolean>>({});
   const [templateComponents, setTemplateComponents] = useState<Record<string, Template[]>>({});
@@ -86,97 +87,92 @@ export default function TemplatesPage() {
     componentLoadQueue.current.clear();
     
     try {
-      for (const templateName of queue) {
-        if (processedTemplates.current.has(templateName) || loadingTemplates.current.has(templateName)) {
-          continue;
-        }
+      // 큐를 5개씩 나누어 처리
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < queue.length; i += BATCH_SIZE) {
+        const batch = queue.slice(i, i + BATCH_SIZE);
         
-        loadingTemplates.current.add(templateName);
-        
-        try {
-          const components = await templateService.getTemplateComponents(
-            params.version as string,
-            templateName
-          );
-          
-          if (!Array.isArray(components)) {
-            throw new Error('Invalid API response');
+        // 현재 배치의 템플릿 컴포넌트를 병렬로 로드
+        const loadPromises = batch.map(async (templateName) => {
+          if (processedTemplates.current.has(templateName) || loadingTemplates.current.has(templateName)) {
+            return;
           }
           
-          // API에서 받은 컴포넌트로 맵 생성
-          const componentMap = new Map(
-            components.map(comp => [comp.component, comp])
-          );
+          loadingTemplates.current.add(templateName);
           
-          // 매핑된 컴포넌트만 필터링하고 API 순서 유지
-          const mappedComponents = allComponents
-            .reduce((acc: Template[], componentName) => {
-              const apiComponent = componentMap.get(componentName);
-              if (apiComponent && apiComponent.content && apiComponent.content.trim() !== '') {
-                acc.push({
-                  ...apiComponent,
-                  isMapped: true
-                });
-              }
-              return acc;
-            }, []);
-          
-          // 매핑된 컴포넌트 수 계산
-          const mappedCount = mappedComponents.length;
-          
-          // 상태 업데이트를 Promise.all로 묶어서 처리
-          await Promise.all([
-            new Promise<void>(resolve => {
-              setTemplateComponents(prev => {
-                const newState = {
-                  ...prev,
-                  [templateName]: mappedComponents
-                };
-                resolve();
-                return newState;
-              });
-            }),
-            new Promise<void>(resolve => {
-              setTemplateCounts(prev => {
-                const newCounts = {
-                  ...prev,
-                  [templateName]: mappedCount
-                };
-                resolve();
-                return newCounts;
-              });
-            })
-          ]);
-          
-          processedTemplates.current.add(templateName);
-        } catch (err) {
-          console.error(`Error loading components for template ${templateName}:`, err);
-          
-          // 에러 발생 시 빈 배열로 설정
-          await Promise.all([
-            new Promise<void>(resolve => {
-              setTemplateComponents(prev => {
-                const newState = {
-                  ...prev,
-                  [templateName]: []
-                };
-                resolve();
-                return newState;
-              });
-            }),
-            new Promise<void>(resolve => {
-              setTemplateCounts(prev => {
-                const newCounts = {
-                  ...prev,
-                  [templateName]: 0
-                };
-                resolve();
-                return newCounts;
-              });
-            })
-          ]);
-        } finally {
-          loadingTemplates.current.delete(templateName);
+          try {
+            const components = await api.getTemplateComponents(
+              params.version as string,
+              templateName
+            );
+            
+            if (!Array.isArray(components)) {
+              throw new Error('Invalid API response');
+            }
+            
+            // API에서 받은 컴포넌트로 맵 생성
+            const componentMap = new Map(
+              components.map(comp => [comp.component, comp])
+            );
+            
+            // 매핑된 컴포넌트만 필터링하고 API 순서 유지
+            const mappedComponents = allComponents
+              .reduce((acc: Template[], componentName) => {
+                const apiComponent = componentMap.get(componentName);
+                if (apiComponent && apiComponent.content && apiComponent.content.trim() !== '') {
+                  acc.push({
+                    ...apiComponent,
+                    isMapped: true
+                  });
+                }
+                return acc;
+              }, []);
+            
+            return {
+              templateName,
+              components: mappedComponents,
+              count: mappedComponents.length
+            };
+          } catch (err) {
+            console.error(`Error loading components for template ${templateName}:`, err);
+            return {
+              templateName,
+              components: [],
+              count: 0
+            };
+          } finally {
+            loadingTemplates.current.delete(templateName);
+          }
+        });
+
+        // 현재 배치의 로드 완료 대기
+        const results = await Promise.all(loadPromises);
+        
+        // 결과를 한 번에 상태 업데이트
+        setTemplateComponents(prev => {
+          const newComponents = { ...prev };
+          results.forEach(result => {
+            if (result) {
+              newComponents[result.templateName] = result.components;
+              processedTemplates.current.add(result.templateName);
+            }
+          });
+          return newComponents;
+        });
+
+        setTemplateCounts(prev => {
+          const newCounts = { ...prev };
+          results.forEach(result => {
+            if (result) {
+              newCounts[result.templateName] = result.count;
+            }
+          });
+          return newCounts;
+        });
+        
+        // 다음 배치 전에 잠시 대기 (서버 부하 방지)
+        if (i + BATCH_SIZE < queue.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     } finally {
@@ -190,7 +186,7 @@ export default function TemplatesPage() {
 
   // allComponents가 변경될 때마다 컴포넌트 매핑 수행
   useEffect(() => {
-    if (allComponents.length > 0 && templates.length > 0) {
+    if (allComponents.length > 0 && templates.length > 0 && !isDataLoaded.current) {
       // 큐 초기화
       componentLoadQueue.current.clear();
       processedTemplates.current.clear();
@@ -198,7 +194,9 @@ export default function TemplatesPage() {
       
       // 템플릿을 순차적으로 처리
       for (const templateName of templates) {
-        componentLoadQueue.current.add(templateName);
+        if (!processedTemplates.current.has(templateName)) {
+          componentLoadQueue.current.add(templateName);
+        }
       }
       
       // 큐 처리 시작
@@ -238,13 +236,13 @@ export default function TemplatesPage() {
           initialLoadPromise.current = (async () => {
             try {
               // 1. 먼저 템플릿 이름을 가져옵니다
-              const templateNames = await templateService.getTemplateNames(params.version as string);
+              const templateNames = await api.getTemplateNames(params.version as string);
               setTemplates(templateNames);
               const initialExpanded = templateNames.reduce((acc, name) => ({ ...acc, [name]: false }), {});
               setExpandedTemplates(initialExpanded);
 
               // 2. 그 다음 컴포넌트 목록을 가져옵니다
-              const componentNames = await templateService.getAllTemplateComponents();
+              const componentNames = await api.getAllTemplateComponents();
               setAllComponents(componentNames);
             } finally {
               initialLoadPromise.current = null;
@@ -339,12 +337,22 @@ export default function TemplatesPage() {
     }
   }, [processComponentLoadQueue, expandedTemplates]);
 
+  // 컴포넌트 클릭 시 상세 정보 로드
   const handleComponentClick = async (template: string, component: Template) => {
     try {
       // 먼저 선택된 컴포넌트 상태를 업데이트
       setSelectedComponent(component);
       setSelectedTemplateName(template);
       setIsDrawerOpen(true);
+
+      // 이미 로드된 컴포넌트가 있으면 재사용
+      const existingComponents = templateComponents[template] || [];
+      const existingComponent = existingComponents.find(comp => comp.component === component.component);
+      
+      if (existingComponent) {
+        setDrawerComponents(existingComponents);
+        return;
+      }
 
       // 저장된 컴포넌트와 API 컴포넌트를 매핑
       const mappedComponents = allComponents.map(componentName => {
@@ -381,7 +389,7 @@ export default function TemplatesPage() {
 
       try {
         // API로 상세 정보 조회 시도
-        const componentDetail = await templateService.getTemplateComponent(
+        const componentDetail = await api.getTemplateComponent(
           params.version as string,
           template,
           component.component
@@ -694,7 +702,7 @@ export default function TemplatesPage() {
       </Stack>
 
       {/* 상세 정보 Drawer */}
-      <TemplateComponentDrawer
+      <TemplateDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         selectedComponent={selectedComponent}

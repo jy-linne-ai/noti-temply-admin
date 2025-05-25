@@ -5,7 +5,9 @@ export interface Layout {
   description: string;
   content: string;
   created_at: string;
+  created_by: string | null;
   updated_at: string;
+  updated_by: string | null;
   version: string;
   templates?: Template[];
 }

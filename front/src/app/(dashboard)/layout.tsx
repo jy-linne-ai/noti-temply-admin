@@ -168,6 +168,9 @@ export default function DashboardLayout({
           onClose={handleDrawerToggle}
           ModalProps={{
             keepMounted: true,
+            disableEnforceFocus: true,
+            disableAutoFocus: true,
+            disableRestoreFocus: true,
           }}
             sx={{
             display: { xs: 'block', md: 'none' },

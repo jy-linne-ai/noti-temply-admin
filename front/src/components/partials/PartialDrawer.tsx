@@ -15,14 +15,19 @@ import {
   ListItemButton,
   ListItemText,
   Divider,
+  TextField,
+  CircularProgress,
 } from '@mui/material';
 import { 
   Close as CloseIcon,
   Edit as EditIcon,
+  Delete as DeleteIcon,
+  Save as SaveIcon,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { PartialTemplate } from '@/types/partial';
 import { HtmlEditor } from '@/components/Editor';
+import { Preview } from '@/components/Preview';
 import { useApi } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 
@@ -32,6 +37,7 @@ interface PartialDrawerProps {
   selectedPartial: PartialTemplate | null;
   version: string;
   onPartialChange?: (partial: PartialTemplate) => void;
+  onDelete?: () => void;
 }
 
 export function PartialDrawer({
@@ -40,6 +46,7 @@ export function PartialDrawer({
   selectedPartial,
   version,
   onPartialChange,
+  onDelete,
 }: PartialDrawerProps) {
   const router = useRouter();
   const api = useApi();
@@ -47,13 +54,27 @@ export function PartialDrawer({
   const [childPartials, setChildPartials] = useState<PartialTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPartial, setCurrentPartial] = useState<PartialTemplate | null>(null);
+  const [sourceContent, setSourceContent] = useState('');
+  const [previewContent, setPreviewContent] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [error, setError] = useState('');
 
   // selectedPartial이 변경될 때마다 currentPartial 업데이트
   useEffect(() => {
     if (selectedPartial) {
       setCurrentPartial(selectedPartial);
+      setSourceContent(selectedPartial.content || '');
+      setPreviewContent(selectedPartial.content || '');
+      setName(selectedPartial.name);
+      setDescription(selectedPartial.description || '');
     }
   }, [selectedPartial]);
+
+  // 소스 변경 시 프리뷰 업데이트
+  useEffect(() => {
+    setPreviewContent(sourceContent);
+  }, [sourceContent]);
 
   // 자식 파셜 목록 로드
   const loadChildPartials = async (partialName: string) => {
@@ -81,18 +102,60 @@ export function PartialDrawer({
   const handlePartialClick = async (partialName: string) => {
     try {
       setIsLoading(true);
-      const updatedPartial = await api.getPartial(version, partialName);
+      // 파셜 정보와 자식 파셜 목록을 병렬로 로드
+      const [updatedPartial, children] = await Promise.all([
+        api.getPartial(version, partialName),
+        api.getPartialChildren(version, partialName)
+      ]);
+
       if (updatedPartial) {
         setCurrentPartial(updatedPartial);
         if (onPartialChange) {
           onPartialChange(updatedPartial);
         }
-        await loadChildPartials(updatedPartial.name);
+        // 자기 자신을 제외한 파셜만 표시
+        const filteredChildren = children.filter(child => child.name !== partialName);
+        setChildPartials(filteredChildren);
+        setName(updatedPartial.name);
+        setDescription(updatedPartial.description || '');
       }
     } catch (err) {
       console.error('Error loading partial:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  const handleDelete = () => {
+    if (onDelete) {
+      onDelete();
+    }
+  };
+
+  const handleSave = async () => {
+    if (currentPartial) {
+      try {
+        setIsLoading(true);
+        const updatedPartial = {
+          ...currentPartial,
+          name,
+          description,
+        };
+        await api.updatePartial(version, currentPartial.name, updatedPartial);
+        if (onPartialChange) {
+          onPartialChange(updatedPartial);
+        }
+        onClose();
+      } catch (err) {
+        console.error('Error updating partial:', err);
+        setError('파셜을 저장하는 동안 오류가 발생했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -102,9 +165,32 @@ export function PartialDrawer({
     <Drawer
       anchor="right"
       open={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       PaperProps={{
-        sx: { width: '80%', maxWidth: '1200px' }
+        sx: { 
+          width: {
+            xs: '100%',    // 모바일에서는 전체 너비
+            sm: '90%',     // 태블릿에서는 90%
+            md: '85%',     // 작은 데스크톱에서는 85%
+            lg: '80%',     // 큰 데스크톱에서는 80%
+            xl: '75%'      // 매우 큰 화면에서는 75%
+          },
+          maxWidth: '1600px'  // 최대 너비 제한
+        }
+      }}
+      keepMounted={false}
+      disablePortal={false}
+      disableEnforceFocus={false}
+      disableAutoFocus={false}
+      sx={{
+        '& .MuiDrawer-paper': {
+          position: 'absolute',
+          height: '100%',
+          transition: 'width 0.3s ease-in-out',
+        },
+        '& .MuiBackdrop-root': {
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        }
       }}
     >
       <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -112,12 +198,17 @@ export function PartialDrawer({
           <Typography variant="h5" component="h2">
             {currentPartial.name}
           </Typography>
-          <IconButton onClick={onClose} size="small">
+          <IconButton onClick={handleClose} size="small">
             <CloseIcon />
           </IconButton>
         </Box>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 80px)' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          height: 'calc(100% - 80px)',
+          overflow: 'hidden'
+        }}>
           {/* 기본 정보 테이블 */}
           <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
             <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 1 }}>
@@ -183,119 +274,93 @@ export function PartialDrawer({
               <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
                 생성
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Typography variant="body2">
-                  {formatDate(currentPartial.created_at)}
-                </Typography>
-              </Box>
+              <Typography variant="body2">
+                {formatDate(currentPartial.created_at)}
+              </Typography>
 
               <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
                 수정
               </Typography>
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <Typography variant="body2">
-                  {formatDate(currentPartial.updated_at)}
-                </Typography>
-              </Box>
+              <Typography variant="body2">
+                {formatDate(currentPartial.updated_at)}
+              </Typography>
             </Box>
           </Paper>
 
+          <TextField
+            label="이름"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            error={!!error}
+            helperText={error}
+            disabled={isLoading || !!currentPartial}
+            fullWidth
+          />
+
+          <TextField
+            label="설명"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            multiline
+            rows={2}
+            disabled={isLoading}
+            fullWidth
+          />
+
           {/* 컨텐츠 탭 */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs 
-              value={contentTab}
-              onChange={(_, newValue: number) => setContentTab(newValue)}
-              aria-label="컨텐츠 탭"
-            >
-              <Tab label="소스" />
-              <Tab label="프리뷰" />
-            </Tabs>
-          </Box>
-
-          {contentTab === 0 && (
-            <Box sx={{ flex: 1, overflow: 'hidden' }}>
-              <Paper 
-                variant="outlined" 
-                sx={{ 
-                  height: '100%',
-                  overflow: 'hidden'
-                }}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+              <Tabs 
+                value={contentTab}
+                onChange={(_, newValue: number) => setContentTab(newValue)}
+                aria-label="컨텐츠 탭"
               >
-                <HtmlEditor
-                  value={currentPartial.content}
-                  onChange={() => {}}
-                  readOnly
-                />
-              </Paper>
+                <Tab label="소스" />
+                <Tab label="프리뷰" />
+              </Tabs>
             </Box>
-          )}
 
-          {contentTab === 1 && (
-            <Box sx={{ flex: 1, overflow: 'hidden' }}>
-              <Paper 
-                variant="outlined" 
-                sx={{ 
-                  height: '100%',
-                  overflow: 'hidden',
-                  bgcolor: 'white'
-                }}
-              >
-                <iframe
-                  srcDoc={`
-                    <!DOCTYPE html>
-                    <html>
-                      <head>
-                        <meta charset="utf-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1">
-                        <style>
-                          body {
-                            margin: 0;
-                            padding: 16px;
-                            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-                            line-height: 1.5;
-                            color: #333;
-                          }
-                          img {
-                            max-width: 100%;
-                            height: auto;
-                          }
-                          table {
-                            border-collapse: collapse;
-                            width: 100%;
-                          }
-                          th, td {
-                            border: 1px solid #ddd;
-                            padding: 8px;
-                          }
-                          th {
-                            background-color: #f5f5f5;
-                          }
-                        </style>
-                      </head>
-                      <body>
-                        ${currentPartial.content}
-                      </body>
-                    </html>
-                  `}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
+            {contentTab === 0 && (
+              <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <Paper 
+                  variant="outlined" 
+                  sx={{ 
+                    flex: 1,
+                    minHeight: 0,
+                    overflow: 'hidden'
                   }}
+                >
+                  <HtmlEditor
+                    value={sourceContent}
+                    onChange={(newContent) => {
+                      setSourceContent(newContent);
+                    }}
+                    type="partial"
+                    height="100%"
+                  />
+                </Paper>
+              </Box>
+            )}
+
+            {contentTab === 1 && (
+              <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                <Preview
+                  content={previewContent}
                   title="파셜 프리뷰"
+                  type="partial"
                 />
-              </Paper>
-            </Box>
-          )}
+              </Box>
+            )}
+          </Box>
 
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
             <Button
               variant="outlined"
-              startIcon={<EditIcon />}
               onClick={() => {
                 onClose();
                 router.push(`/versions/${version}/partials/${currentPartial.name}`);
               }}
+              startIcon={<EditIcon />}
             >
               수정하기
             </Button>

@@ -14,7 +14,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { templateService } from '@/services/templateService';
+import { useApi } from '@/lib/api';
 import { Template } from '@/types/template';
 import { useSnackbar } from 'notistack';
 
@@ -25,6 +25,8 @@ export default function TemplateDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
 
+  const api = useApi();
+
   const version = params.version as string;
   const templateName = params.template as string;
   const component = params.component as string;
@@ -32,7 +34,7 @@ export default function TemplateDetailPage() {
   useEffect(() => {
     const fetchTemplate = async () => {
       try {
-        const data = await templateService.getTemplate(version, templateName, component);
+        const data = await api.getTemplate(version, templateName, component);
         setTemplate(data);
         setEditedContent(data.content);
       } catch (error) {
@@ -41,7 +43,7 @@ export default function TemplateDetailPage() {
     };
 
     fetchTemplate();
-  }, [version, templateName, component, enqueueSnackbar]);
+  }, [version, templateName, component, enqueueSnackbar, api]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -56,7 +58,7 @@ export default function TemplateDetailPage() {
     if (!template) return;
 
     try {
-      const updatedTemplate = await templateService.updateTemplate(version, templateName, component, {
+      const updatedTemplate = await api.updateTemplate(version, templateName, component, {
         content: editedContent,
       });
       setTemplate(updatedTemplate);

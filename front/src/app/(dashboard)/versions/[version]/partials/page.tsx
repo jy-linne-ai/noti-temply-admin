@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   Box,
@@ -41,9 +41,73 @@ export default function PartialsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPartial, setSelectedPartial] = useState<PartialTemplate | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const isInitialized = useRef(false);
+
+  const fetchRootPartials = async () => {
+    console.log('fetchRootPartials called', new Date().toISOString());
+    try {
+      // 루트 파셜 목록 가져오기
+      const rootPartials = await api.getPartials(params.version as string, true);
+      
+      // 루트 파셜을 5개씩 나누어 처리
+      const BATCH_SIZE = 5;
+      const partialsWithChildren: PartialWithChildren[] = [];
+      
+      for (let i = 0; i < rootPartials.length; i += BATCH_SIZE) {
+        const batch = rootPartials.slice(i, i + BATCH_SIZE);
+        
+        // 현재 배치의 자식 파셜을 병렬로 로드
+        const childrenPromises = batch.map(p => 
+          api.getPartialChildren(params.version as string, p.name)
+            .then(children => ({
+              parentName: p.name,
+              children: children.map(c => ({
+                ...c,
+                isExpanded: true,
+                children: [] // 하위 파셜의 자식은 필요할 때 로드
+              }))
+            }))
+            .catch(err => {
+              console.error(`Error fetching children for ${p.name}:`, err);
+              return {
+                parentName: p.name,
+                children: []
+              };
+            })
+        );
+
+        // 현재 배치의 로드 완료 대기
+        const childrenResults = await Promise.all(childrenPromises);
+        
+        // 현재 배치의 결과를 partialsWithChildren에 추가
+        batch.forEach(p => {
+          const childrenResult = childrenResults.find(r => r.parentName === p.name);
+          partialsWithChildren.push({
+            ...p,
+            isExpanded: true,
+            children: childrenResult?.children || []
+          });
+        });
+
+        // 다음 배치 전에 잠시 대기 (서버 부하 방지)
+        if (i + BATCH_SIZE < rootPartials.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      setPartials(partialsWithChildren);
+    } catch (err) {
+      console.error('Error fetching root partials:', err);
+      setError('파셜 목록을 불러오는데 실패했습니다.');
+    }
+  };
 
   useEffect(() => {
-    fetchRootPartials();
+    if (!isInitialized.current) {
+      console.log('Initial fetch', new Date().toISOString());
+      isInitialized.current = true;
+      fetchRootPartials();
+    }
   }, [params.version]);
 
   // 필터링된 파셜 목록
@@ -62,87 +126,32 @@ export default function PartialsPage() {
     return partials.filter(filterPartial);
   }, [partials, searchQuery]);
 
-  const fetchRootPartials = async () => {
-    try {
-      const data = await api.getPartials('root', true);
-      // 각 파셜의 하위 파셜 개수를 가져옵니다
-      const partialsWithChildren = await Promise.all(
-        data.map(async (p) => {
-          const children = await api.getPartialChildren(params.version as string, p.name);
-          return {
-            ...p,
-            isExpanded: true,
-            children: children.map(c => ({ ...c, isExpanded: true }))
-          };
-        })
-      );
-      setPartials(partialsWithChildren);
-    } catch (err) {
-      console.error('Error fetching root partials:', err);
-      setError('파셜 목록을 불러오는데 실패했습니다.');
-    }
-  };
-
-  const fetchChildren = async (partial: PartialWithChildren) => {
-    try {
-      const children = await api.getPartialChildren(params.version as string, partial.name);
-      const childrenWithExpanded = await Promise.all(
-        children.map(async (child) => {
-          const childWithChildren: PartialWithChildren = { ...child, isExpanded: true };
-          // 재귀적으로 하위 파셜을 가져옵니다
-          const grandChildren = await api.getPartialChildren(params.version as string, child.name);
-          if (grandChildren.length > 0) {
-            childWithChildren.children = await Promise.all(
-              grandChildren.map(async (grandChild) => ({
-                ...grandChild,
-                isExpanded: true,
-                children: await fetchChildrenRecursively(grandChild)
-              }))
-            );
-          }
-          return childWithChildren;
-        })
-      );
-
-      const updatedPartials = partials.map(p => {
-        if (p.name === partial.name) {
-          return {
-            ...p,
-            children: childrenWithExpanded,
-            isExpanded: true
-          };
-        }
-        return p;
-      });
-      setPartials(updatedPartials);
-    } catch (err) {
-      console.error('Error fetching children:', err);
-      setError('하위 파셜 목록을 불러오는데 실패했습니다.');
-    }
-  };
-
-  // 재귀적으로 하위 파셜을 가져오는 헬퍼 함수
-  const fetchChildrenRecursively = async (partial: PartialTemplate): Promise<PartialWithChildren[]> => {
-    try {
-      const children = await api.getPartialChildren(params.version as string, partial.name);
-      if (children.length === 0) return [];
-
-      return await Promise.all(
-        children.map(async (child) => ({
-          ...child,
+  const handleToggleExpand = async (partial: PartialWithChildren) => {
+    if (!partial.children?.length && !partial.isExpanded) {
+      try {
+        console.log('Fetching children for:', partial.name);
+        const children = await api.getPartialChildren(params.version as string, partial.name);
+        const childrenWithExpanded = children.map(c => ({
+          ...c,
           isExpanded: true,
-          children: await fetchChildrenRecursively(child)
-        }))
-      );
-    } catch (err) {
-      console.error('Error fetching children recursively:', err);
-      return [];
-    }
-  };
+          children: [] // 하위 파셜의 자식은 필요할 때 로드
+        }));
 
-  const handleToggleExpand = (partial: PartialWithChildren) => {
-    if (!partial.children && !partial.isExpanded) {
-      fetchChildren(partial);
+        const updatedPartials = partials.map(p => {
+          if (p.name === partial.name) {
+            return {
+              ...p,
+              children: childrenWithExpanded,
+              isExpanded: true
+            };
+          }
+          return p;
+        });
+        setPartials(updatedPartials);
+      } catch (err) {
+        console.error('Error fetching children:', err);
+        setError('하위 파셜 목록을 불러오는데 실패했습니다.');
+      }
     } else {
       const updatedPartials = partials.map(p => {
         if (p.name === partial.name) {
@@ -280,10 +289,7 @@ export default function PartialsPage() {
         <Stack direction="row" spacing={2}>
           <Button
             variant="outlined"
-            onClick={() => {
-              setPartials([]);
-              fetchRootPartials();
-            }}
+            onClick={fetchRootPartials}
             startIcon={<RefreshIcon />}
           >
             새로고침

@@ -15,10 +15,6 @@ export default function DashboardPage() {
   const [isVersionDialogOpen, setIsVersionDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchVersions();
-  }, []);
-
-  useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredVersions(versions);
     } else {
@@ -69,6 +65,11 @@ export default function DashboardPage() {
     setSearchQuery(''); // 검색어 초기화
   };
 
+  const handleOpenVersionDialog = async () => {
+    await fetchVersions();
+    setIsVersionDialogOpen(true);
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -86,7 +87,7 @@ export default function DashboardPage() {
             <Stack direction="row" spacing={2}>
               <Button
                 variant="outlined"
-                onClick={() => setIsVersionDialogOpen(true)}
+                onClick={handleOpenVersionDialog}
               >
                 버전 변경
               </Button>
@@ -107,6 +108,9 @@ export default function DashboardPage() {
         onClose={handleDialogClose}
         maxWidth="sm"
         fullWidth
+        disableEnforceFocus
+        disableAutoFocus
+        keepMounted={false}
       >
         <DialogTitle>버전 선택</DialogTitle>
         <DialogContent>

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { useApi } from '@/lib/api';
+import { Version } from '@/types/version';
 import {
   Box,
   Button,
@@ -34,11 +35,6 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 
-interface Version {
-  version: string;
-  is_root: boolean;
-}
-
 export default function VersionSelectPage() {
   const [versions, setVersions] = useState<Version[]>([]);
   const [filteredVersions, setFilteredVersions] = useState<Version[]>([]);
@@ -49,6 +45,7 @@ export default function VersionSelectPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [versionToDelete, setVersionToDelete] = useState<string | null>(null);
   const router = useRouter();
+  const api = useApi();
 
   useEffect(() => {
     fetchVersions();
@@ -79,9 +76,9 @@ export default function VersionSelectPage() {
 
   const fetchVersions = async () => {
     try {
-      const response = await api.get('/api/v1/versions');
-      setVersions(response.data);
-      setFilteredVersions(response.data);
+      const response = await api.getVersions();
+      setVersions(response);
+      setFilteredVersions(response);
     } catch (error) {
       console.error('Failed to fetch versions:', error);
     } finally {
@@ -92,7 +89,7 @@ export default function VersionSelectPage() {
   const handleVersionSelect = async (version: string) => {
     try {
       // 버전 유효성 체크
-      await api.get(`/api/v1/versions/${version}`);
+      await api.getVersion(version);
       
       // 쿠키에 버전 저장
       document.cookie = `version=${version}; path=/`;
@@ -112,7 +109,7 @@ export default function VersionSelectPage() {
     }
 
     try {
-      await api.post('/api/v1/versions', { version: newVersion });
+      await api.createVersion(newVersion);
       setNewVersion('');
       setIsCreating(false);
       await fetchVersions();
@@ -122,7 +119,7 @@ export default function VersionSelectPage() {
     }
   };
 
-  const handleDeleteClick = (version: string, isRoot: boolean) => {
+  const handleDeleteClick = (version: string, isRoot: boolean | undefined) => {
     if (isRoot) {
       alert('Root 버전은 삭제할 수 없습니다.');
       return;
@@ -135,7 +132,7 @@ export default function VersionSelectPage() {
     if (!versionToDelete) return;
 
     try {
-      await api.delete(`/api/v1/versions/${versionToDelete}`);
+      await api.deleteVersion(versionToDelete);
       await fetchVersions();
     } catch (error) {
       console.error('Failed to delete version:', error);
