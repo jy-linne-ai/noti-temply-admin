@@ -9,7 +9,7 @@ from app.core.exceptions import (
     TemplateNotFoundError,
 )
 from app.core.temply.temply_env import TemplateComponents, TemplyEnv
-from app.models.common_model import User
+from app.models.common_model import User, VersionInfo
 from app.models.layout_model import LayoutCreate
 from app.models.partial_model import PartialCreate
 from app.models.template_model import TemplateComponentCreate, TemplateComponentUpdate
@@ -19,10 +19,10 @@ from app.repositories.template_repository import TemplateRepository
 
 
 @pytest.mark.asyncio
-async def test_template_repository(temp_env: TemplyEnv, user: User):
+async def test_template_repository(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """기본 템플릿 생성/조회 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -38,7 +38,7 @@ async def test_template_repository(temp_env: TemplyEnv, user: User):
     )
     create_partial = await partial_repository.create(user, partial_create)
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
         description="test description",
@@ -79,10 +79,10 @@ async def test_template_repository(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_duplicate(temp_env: TemplyEnv, user: User):
+async def test_template_duplicate(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """중복 템플릿 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -98,7 +98,7 @@ async def test_template_duplicate(temp_env: TemplyEnv, user: User):
     )
     create_partial = await partial_repository.create(user, partial_create)
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -113,18 +113,18 @@ async def test_template_duplicate(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_not_found(temp_env: TemplyEnv):
+async def test_template_not_found(version_info: VersionInfo, temp_env: TemplyEnv):
     """존재하지 않는 템플릿 조회 테스트"""
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     with pytest.raises(TemplateNotFoundError):
         await template_repository.get_component("non_existent_template", "non_existent_component")
 
 
 @pytest.mark.asyncio
-async def test_template_update(temp_env: TemplyEnv, user: User):
+async def test_template_update(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """템플릿 업데이트 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -140,7 +140,7 @@ async def test_template_update(temp_env: TemplyEnv, user: User):
     )
     create_partial = await partial_repository.create(user, partial_create)
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -174,10 +174,10 @@ async def test_template_update(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_invalid_name(temp_env: TemplyEnv, user: User):
+async def test_template_invalid_name(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """잘못된 템플릿 이름 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -193,7 +193,7 @@ async def test_template_invalid_name(temp_env: TemplyEnv, user: User):
     )
     create_partial = await partial_repository.create(user, partial_create)
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     invalid_names = [
         "test/template",  # 슬래시 포함
         "test template",  # 공백 포함
@@ -223,10 +223,10 @@ async def test_template_invalid_name(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_delete(temp_env: TemplyEnv, user: User):
+async def test_template_delete(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """템플릿 삭제 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -242,7 +242,7 @@ async def test_template_delete(temp_env: TemplyEnv, user: User):
     )
     create_partial = await partial_repository.create(user, partial_create)
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -266,10 +266,12 @@ async def test_template_delete(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_with_multiple_partials(temp_env: TemplyEnv, user: User):
+async def test_template_with_multiple_partials(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """여러 파셜을 사용하는 템플릿 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -288,7 +290,7 @@ async def test_template_with_multiple_partials(temp_env: TemplyEnv, user: User):
         )
         partials.append(await partial_repository.create(user, partial_create))
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -320,10 +322,12 @@ async def test_template_with_multiple_partials(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_with_nested_partials(temp_env: TemplyEnv, user: User):
+async def test_template_with_nested_partials(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """중첩된 파셜을 사용하는 템플릿 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -353,7 +357,7 @@ async def test_template_with_nested_partials(temp_env: TemplyEnv, user: User):
         ),
     )
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -387,9 +391,11 @@ async def test_template_with_nested_partials(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_without_layout_and_partials(temp_env: TemplyEnv, user: User):
+async def test_template_without_layout_and_partials(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """레이아웃과 파셜이 없는 템플릿 생성 테스트"""
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -413,9 +419,9 @@ async def test_template_without_layout_and_partials(temp_env: TemplyEnv, user: U
 
 
 @pytest.mark.asyncio
-async def test_template_without_layout(temp_env: TemplyEnv, user: User):
+async def test_template_without_layout(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """레이아웃이 없는 템플릿 생성 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     partial_create = PartialCreate(
         name="test_partial",
         content="test partial content",
@@ -424,7 +430,7 @@ async def test_template_without_layout(temp_env: TemplyEnv, user: User):
     )
     create_partial = await partial_repository.create(user, partial_create)
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -451,9 +457,11 @@ async def test_template_without_layout(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_without_partials(temp_env: TemplyEnv, user: User):
+async def test_template_without_partials(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """파셜이 없는 템플릿 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -461,7 +469,7 @@ async def test_template_without_partials(temp_env: TemplyEnv, user: User):
     )
     create_layout = await layout_repository.create(user, layout_create)
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -485,10 +493,11 @@ async def test_template_without_partials(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_with_single_partial(temp_env: TemplyEnv, user: User):
+async def test_template_with_single_partial(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """단일 파셜을 사용하는 템플릿 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -496,6 +505,7 @@ async def test_template_with_single_partial(temp_env: TemplyEnv, user: User):
     )
     create_layout = await layout_repository.create(user, layout_create)
 
+    partial_repository = PartialRepository(version_info, temp_env)
     partial_create = PartialCreate(
         name="test_partial",
         content="test partial content",
@@ -504,7 +514,7 @@ async def test_template_with_single_partial(temp_env: TemplyEnv, user: User):
     )
     create_partial = await partial_repository.create(user, partial_create)
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -531,10 +541,12 @@ async def test_template_with_single_partial(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_with_two_partials(temp_env: TemplyEnv, user: User):
+async def test_template_with_two_partials(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """두 개의 파셜을 사용하는 템플릿 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="layout_test",
         content="test layout content",
@@ -553,7 +565,7 @@ async def test_template_with_two_partials(temp_env: TemplyEnv, user: User):
         )
         partials.append(await partial_repository.create(user, partial_create))
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     component_create = TemplateComponentCreate(
         component=TemplateComponents.HTML_EMAIL.value,
@@ -584,10 +596,10 @@ async def test_template_with_two_partials(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_update_layout(temp_env: TemplyEnv, user: User):
+async def test_template_update_layout(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """템플릿 업데이트 시 레이아웃 변경 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     # 기존 레이아웃 생성
     old_layout = await layout_repository.create(
@@ -621,7 +633,7 @@ async def test_template_update_layout(temp_env: TemplyEnv, user: User):
     )
 
     # 템플릿 생성
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     created_component = await template_repository.create_component(
         user,
@@ -660,10 +672,10 @@ async def test_template_update_layout(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_update_partials(temp_env: TemplyEnv, user: User):
+async def test_template_update_partials(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """템플릿 업데이트 시 파셜 변경 테스트"""
-    layout_repository = LayoutRepository(temp_env)
-    partial_repository = PartialRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     # 레이아웃 생성
     layout = await layout_repository.create(
@@ -704,7 +716,7 @@ async def test_template_update_partials(temp_env: TemplyEnv, user: User):
         new_partials.append(partial)
 
     # 템플릿 생성
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     created_component = await template_repository.create_component(
         user,
@@ -747,9 +759,11 @@ async def test_template_update_partials(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_nonexistent_layout(temp_env: TemplyEnv, user: User):
+async def test_template_nonexistent_layout(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """존재하지 않는 레이아웃 참조 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     partial = await partial_repository.create(
         user,
         PartialCreate(
@@ -760,7 +774,7 @@ async def test_template_nonexistent_layout(temp_env: TemplyEnv, user: User):
         ),
     )
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     with pytest.raises(LayoutNotFoundError):
         template = "test"
         await template_repository.create_component(
@@ -777,9 +791,11 @@ async def test_template_nonexistent_layout(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
+async def test_template_nonexistent_partial(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """존재하지 않는 파셜 참조 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layout = await layout_repository.create(
         user,
         LayoutCreate(
@@ -789,7 +805,7 @@ async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
         ),
     )
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     with pytest.raises(PartialNotFoundError):
         template = "test"
         await template_repository.create_component(
@@ -806,10 +822,12 @@ async def test_template_nonexistent_partial(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_template_repository_get_templates(temp_env: TemplyEnv, user: User):
+async def test_template_repository_get_templates(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """템플릿 목록 조회 테스트"""
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     template_name = TemplateComponents.HTML_EMAIL.value
     component_create = TemplateComponentCreate(
@@ -829,10 +847,12 @@ async def test_template_repository_get_templates(temp_env: TemplyEnv, user: User
 
 
 @pytest.mark.asyncio
-async def test_template_repository_get_components_by_template(temp_env: TemplyEnv, user: User):
+async def test_template_repository_get_components_by_template(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """템플릿 목록 조회 테스트"""
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     template_name = TemplateComponents.HTML_EMAIL.value
     component_create = TemplateComponentCreate(
@@ -854,10 +874,12 @@ async def test_template_repository_get_components_by_template(temp_env: TemplyEn
 
 
 @pytest.mark.asyncio
-async def test_template_repository_delete_component_by_template(temp_env: TemplyEnv, user: User):
+async def test_template_repository_delete_component_by_template(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """템플릿별 템플릿 삭제 테스트"""
 
-    template_repository = TemplateRepository(temp_env)
+    template_repository = TemplateRepository(version_info, temp_env)
     template = "test"
     template_name = TemplateComponents.HTML_EMAIL.value
     component_create = TemplateComponentCreate(

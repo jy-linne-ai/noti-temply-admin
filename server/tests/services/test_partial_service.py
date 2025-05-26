@@ -6,23 +6,25 @@ import pytest
 
 from app.core.exceptions import PartialCircularDependencyError, PartialNotFoundError
 from app.core.temply.temply_env import TemplyEnv
-from app.models.common_model import User
+from app.models.common_model import User, VersionInfo
 from app.models.partial_model import PartialCreate, PartialUpdate
 from app.repositories.partial_repository import PartialRepository
 from app.services.partial_service import PartialService
 
 
-def get_temp_env_service(temp_env):
+def get_temp_env_service(version_info: VersionInfo, temp_env: TemplyEnv):
     """레이아웃 서비스 픽스처"""
-    repository = PartialRepository(temp_env)
+    repository = PartialRepository(version_info, temp_env)
     service = PartialService(repository)
     return service
 
 
 @pytest.mark.asyncio
-async def test_partial_service_create_and_get(temp_env, user: User):
+async def test_partial_service_create_and_get(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """파셜 생성/조회 테스트"""
-    service = get_temp_env_service(temp_env)
+    service = get_temp_env_service(version_info, temp_env)
     # 파셜 생성
     partial_create = PartialCreate(
         name="test_partial",
@@ -51,9 +53,9 @@ async def test_partial_service_create_and_get(temp_env, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_list(temp_env, user: User):
+async def test_partial_service_list(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """파셜 목록 조회 테스트"""
-    service = get_temp_env_service(temp_env)
+    service = get_temp_env_service(version_info, temp_env)
     # 여러 파셜 생성
     partials = []
     for i in range(3):
@@ -73,9 +75,9 @@ async def test_partial_service_list(temp_env, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_update(temp_env, user: User):
+async def test_partial_service_update(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """파셜 수정 테스트"""
-    service = get_temp_env_service(temp_env)
+    service = get_temp_env_service(version_info, temp_env)
     # 파셜 생성
     partial_create = PartialCreate(
         name="test_partial",
@@ -108,9 +110,9 @@ async def test_partial_service_update(temp_env, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_delete(temp_env, user: User):
+async def test_partial_service_delete(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """파셜 삭제 테스트"""
-    service = get_temp_env_service(temp_env)
+    service = get_temp_env_service(version_info, temp_env)
     # 파셜 생성
     partial_create = PartialCreate(
         name="test_partial",
@@ -130,17 +132,17 @@ async def test_partial_service_delete(temp_env, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_not_found(temp_env):
+async def test_partial_service_not_found(version_info: VersionInfo, temp_env: TemplyEnv):
     """존재하지 않는 파셜 조회 테스트"""
-    service = get_temp_env_service(temp_env)
+    service = get_temp_env_service(version_info, temp_env)
     with pytest.raises(PartialNotFoundError):
         await service.get("non_existent_partial")
 
 
 @pytest.fixture
-async def partial_with_dependency(temp_env, user: User):
+async def partial_with_dependency(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """의존성이 있는 파셜을 생성하는 fixture"""
-    service = get_temp_env_service(temp_env)
+    service = get_temp_env_service(version_info, temp_env)
 
     # 기본 파셜 생성
     base_partial = await service.create(
@@ -168,9 +170,11 @@ async def partial_with_dependency(temp_env, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_circular_dependencies(temp_env, user: User):
+async def test_partial_service_circular_dependencies(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """순환 의존성 테스트"""
-    service = get_temp_env_service(temp_env)
+    service = get_temp_env_service(version_info, temp_env)
 
     # 두 파셜을 의존성 없이 생성
     partial1 = await service.create(
@@ -225,9 +229,11 @@ async def test_partial_service_circular_dependencies(temp_env, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_update_dependencies(temp_env, user: User):
+async def test_partial_service_update_dependencies(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """의존성 업데이트 테스트"""
-    service = get_temp_env_service(temp_env)
+    service = get_temp_env_service(version_info, temp_env)
 
     # 기본 파셜 생성
     base_partial = await service.create(
@@ -290,9 +296,9 @@ async def test_partial_service_update_dependencies(temp_env, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_get_root(temp_env: TemplyEnv, user: User):
+async def test_partial_service_get_root(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """루트 파셜 조회 테스트"""
-    partial_service = PartialService(PartialRepository(temp_env))
+    partial_service = PartialService(PartialRepository(version_info, temp_env))
 
     # 루트 파셜 생성
     root_partial = await partial_service.create(
@@ -326,9 +332,11 @@ async def test_partial_service_get_root(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_get_children(temp_env: TemplyEnv, user: User):
+async def test_partial_service_get_children(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """자식 파셜 조회 테스트"""
-    partial_service = PartialService(PartialRepository(temp_env))
+    partial_service = PartialService(PartialRepository(version_info, temp_env))
 
     # 부모 파셜 생성
     parent_partial = await partial_service.create(
@@ -366,8 +374,10 @@ async def test_partial_service_get_children(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_service_get_children_not_found(temp_env: TemplyEnv):
+async def test_partial_service_get_children_not_found(
+    version_info: VersionInfo, temp_env: TemplyEnv
+):
     """존재하지 않는 파셜의 자식 조회 테스트"""
-    partial_service = PartialService(PartialRepository(temp_env))
+    partial_service = PartialService(PartialRepository(version_info, temp_env))
     with pytest.raises(PartialNotFoundError):
         await partial_service.get_children("non_existent_partial")

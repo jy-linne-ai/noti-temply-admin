@@ -2,14 +2,14 @@
 
 from app.core.config import Config
 from app.core.temply.temply_env import TemplyEnv
+from app.models.common_model import VersionInfo
 
 
 class TemplyVersionEnv:
     """Temply 버전별 환경"""
 
-    def __init__(self, config: Config, version: str, pr_version: str | None = None):
-        self.version: str = version
-        self.pr_version: str | None = pr_version
+    def __init__(self, config: Config, version_info: VersionInfo):
+        self.version_info: VersionInfo = version_info
         self.applied_version: str
 
         # TODO 실제 버전 목록을 조회하는 로직 추가
@@ -17,11 +17,11 @@ class TemplyVersionEnv:
         # 일치하는 버전이 없으면 Pr 버전이 있는지 확인
         # Pr 버전이 있으면 Pr 버전을 적용
         # 2개 모두 없으면 예외 발생
-        if config.is_dev() and pr_version:
-            self.applied_version = pr_version
-        else:
-            self.applied_version = version
-        self.temply_env: TemplyEnv = TemplyEnv(config, self.applied_version)
+        # if config.is_dev() and self.version_info.pr_number:
+        #     self.applied_version = self.version_info.pr_number
+        # else:
+        #     self.applied_version = self.version_info.revision_version
+        self.temply_env: TemplyEnv = TemplyEnv(config, self.version_info.version)
 
     def get_temply_env(self) -> TemplyEnv:
         """Temply 환경 반환"""

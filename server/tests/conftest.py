@@ -7,7 +7,7 @@ import pytest
 
 from app.core.config import Config
 from app.core.temply.temply_env import TemplyEnv
-from app.models.common_model import User
+from app.models.common_model import User, VersionInfo
 
 
 @pytest.fixture()
@@ -31,3 +31,10 @@ def temp_env(tmp_path):
 def user():
     """사용자 설정"""
     return User(name="test")
+
+
+@pytest.fixture()
+def version_info():
+    """버전 정보 설정"""
+    config = Config()
+    return VersionInfo(config, "r123")

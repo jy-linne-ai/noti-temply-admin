@@ -8,15 +8,15 @@ from app.core.exceptions import (
     PartialNotFoundError,
 )
 from app.core.temply.temply_env import TemplyEnv
-from app.models.common_model import User
+from app.models.common_model import User, VersionInfo
 from app.models.partial_model import PartialCreate, PartialUpdate
 from app.repositories.partial_repository import PartialRepository
 
 
 @pytest.mark.asyncio
-async def test_partial_repository(temp_env: TemplyEnv, user: User):
+async def test_partial_repository(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """기본 파셜 생성/조회 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     partial_create = PartialCreate(
         name="test_partial",
         content="test partial content",
@@ -41,9 +41,9 @@ async def test_partial_repository(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_duplicate(temp_env: TemplyEnv, user: User):
+async def test_partial_duplicate(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """중복 파셜 생성 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     partial_create = PartialCreate(
         name="test_partial",
         content="test partial content",
@@ -56,17 +56,17 @@ async def test_partial_duplicate(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_not_found(temp_env: TemplyEnv):
+async def test_partial_not_found(version_info: VersionInfo, temp_env: TemplyEnv):
     """존재하지 않는 파셜 조회 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     with pytest.raises(PartialNotFoundError):
         await partial_repository.get("non_existent_partial")
 
 
 @pytest.mark.asyncio
-async def test_partial_update(temp_env: TemplyEnv, user: User):
+async def test_partial_update(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """파셜 업데이트 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     partial_create = PartialCreate(
         name="test_partial",
         content="test partial content",
@@ -96,9 +96,11 @@ async def test_partial_update(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_with_dependencies(temp_env: TemplyEnv, user: User):
+async def test_partial_with_dependencies(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """의존성이 있는 파셜 생성 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     # 기본 파셜 생성
     base_partial = await partial_repository.create(
@@ -130,9 +132,9 @@ async def test_partial_with_dependencies(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_invalid_name(temp_env: TemplyEnv, user: User):
+async def test_partial_invalid_name(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """잘못된 파셜 이름 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     invalid_names = [
         "test/partial",  # 슬래시 포함
         "test partial",  # 공백 포함
@@ -159,9 +161,9 @@ async def test_partial_invalid_name(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_delete(temp_env: TemplyEnv, user: User):
+async def test_partial_delete(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """파셜 삭제 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     partial_create = PartialCreate(
         name="test_partial",
         content="test partial content",
@@ -179,9 +181,11 @@ async def test_partial_delete(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_repository_with_dependencies(temp_env: TemplyEnv, user: User):
+async def test_partial_repository_with_dependencies(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """Test partial repository with dependencies"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     test_partial = PartialCreate(
         name="test",
@@ -248,9 +252,11 @@ async def test_partial_repository_with_dependencies(temp_env: TemplyEnv, user: U
 
 
 @pytest.mark.asyncio
-async def test_partial_circular_dependency(temp_env: TemplyEnv, user: User):
+async def test_partial_circular_dependency(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """순환 의존성 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     # 첫 번째 파셜 생성
     partial1 = await partial_repository.create(
@@ -288,9 +294,11 @@ async def test_partial_circular_dependency(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_nonexistent_dependency(temp_env: TemplyEnv, user: User):
+async def test_partial_nonexistent_dependency(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """존재하지 않는 의존성 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     # 존재하지 않는 의존성을 가진 파셜 생성 시도
     with pytest.raises(PartialNotFoundError):
@@ -306,9 +314,11 @@ async def test_partial_nonexistent_dependency(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_update_dependencies(temp_env: TemplyEnv, user: User):
+async def test_partial_update_dependencies(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """파셜 업데이트 시 의존성 변경 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     # 기본 파셜들 생성
     base_partial = await partial_repository.create(
@@ -372,9 +382,11 @@ async def test_partial_update_dependencies(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_repository_get_root(temp_env: TemplyEnv, user: User):
+async def test_partial_repository_get_root(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """루트 파셜 조회 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     # 루트 파셜 생성
     root_partial = await partial_repository.create(
@@ -408,9 +420,11 @@ async def test_partial_repository_get_root(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_repository_get_children(temp_env: TemplyEnv, user: User):
+async def test_partial_repository_get_children(
+    version_info: VersionInfo, temp_env: TemplyEnv, user: User
+):
     """자식 파셜 조회 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
 
     # 부모 파셜 생성
     parent_partial = await partial_repository.create(
@@ -448,8 +462,10 @@ async def test_partial_repository_get_children(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_partial_repository_get_children_not_found(temp_env: TemplyEnv):
+async def test_partial_repository_get_children_not_found(
+    version_info: VersionInfo, temp_env: TemplyEnv
+):
     """존재하지 않는 파셜의 자식 조회 테스트"""
-    partial_repository = PartialRepository(temp_env)
+    partial_repository = PartialRepository(version_info, temp_env)
     with pytest.raises(PartialNotFoundError):
         await partial_repository.get_children("non_existent_partial")

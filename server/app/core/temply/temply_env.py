@@ -128,25 +128,27 @@ class TemplyEnv:
 
     def load_source(self, component_path: str) -> tuple[str, str | None, Callable[[], bool] | None]:
         """템플릿 컴포넌트 소스 조회"""
+        if not self.env.loader:
+            raise ValueError("Template loader is not initialized")
         return self.env.loader.get_source(self.env, component_path)
 
     def load_layout_source(
         self, layout_name: str
     ) -> tuple[str, str | None, Callable[[], bool] | None]:
         """템플릿 소스 경로 조회"""
-        return self.load_source(self._build_layout_path(layout_name))
+        return self.load_source(self.build_layout_path(layout_name))
 
     def load_partial_source(
         self, partial_name: str
     ) -> tuple[str, str | None, Callable[[], bool] | None]:
         """파트 소스 경로 조회"""
-        return self.load_source(self._build_partial_path(partial_name))
+        return self.load_source(self.build_partial_path(partial_name))
 
     def load_component_source(
         self, template_name: str, component_name: str
     ) -> tuple[str, str | None, Callable[[], bool] | None]:
         """템플릿 소스 경로 조회"""
-        return self.load_source(self._build_component_path(template_name, component_name))
+        return self.load_source(self.build_component_path(template_name, component_name))
 
     # def get_layout_template(self, layout_name: str) -> Template:
     #     """레이아웃 조회"""
@@ -158,7 +160,7 @@ class TemplyEnv:
 
     def get_component_template(self, template_name: str, component_name: str) -> Template:
         """템플릿 조회"""
-        return self.env.get_template(self._build_component_path(template_name, component_name))
+        return self.env.get_template(self.build_component_path(template_name, component_name))
 
     def parse(self, content: str) -> nodes.Template:
         """템플릿 파싱"""
@@ -229,7 +231,7 @@ class TemplyEnv:
         """템플릿 컴포넌트 렌더링"""
         return self.get_component_template(template, component_name).render(schema_data)
 
-    def render_template(self, template: str, schema_data: Dict[str, Any]) -> str:
+    def render_template(self, template: str, schema_data: Dict[str, Any]) -> Dict[str, str]:
         """템플릿 컴포넌트 렌더링"""
         result = dict()
         for component_name in self.get_component_names(template):
@@ -240,7 +242,7 @@ class TemplyEnv:
         """템플릿 경로 조회"""
         return self.templates_dir_name + "/" + template
 
-    def _build_component_path(self, template: str, component: str) -> str:
+    def build_component_path(self, template: str, component: str) -> str:
         """템플릿 컴포넌트 경로 조회"""
         return self._build_template_path(template) + "/" + component
 
@@ -257,7 +259,7 @@ class TemplyEnv:
             items.append(item.name)
         return items
 
-    def _build_layout_path(self, name: str) -> str:
+    def build_layout_path(self, name: str) -> str:
         """레이아웃 경로 조회"""
         return self.layouts_dir_name + "/" + name
 
@@ -270,7 +272,7 @@ class TemplyEnv:
             items.append(item.name)
         return items
 
-    def _build_partial_path(self, name: str) -> str:
+    def build_partial_path(self, name: str) -> str:
         """파트 경로 조회"""
         return self.partials_dir_name + "/" + name
 

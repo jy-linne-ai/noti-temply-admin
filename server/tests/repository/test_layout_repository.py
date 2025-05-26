@@ -4,15 +4,15 @@ import pytest
 
 from app.core.exceptions import LayoutAlreadyExistsError, LayoutNotFoundError
 from app.core.temply.temply_env import TemplyEnv
-from app.models.common_model import User
+from app.models.common_model import User, VersionInfo
 from app.models.layout_model import LayoutCreate, LayoutUpdate
 from app.repositories.layout_repository import LayoutRepository
 
 
 @pytest.mark.asyncio
-async def test_layout_repository(temp_env: TemplyEnv, user: User):
+async def test_layout_repository(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """기본 레이아웃 생성/조회 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="test_layout",
         content="test layout content",
@@ -34,9 +34,9 @@ async def test_layout_repository(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_layout_duplicate(temp_env: TemplyEnv, user: User):
+async def test_layout_duplicate(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """중복 레이아웃 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="test_layout",
         content="test layout content",
@@ -48,17 +48,17 @@ async def test_layout_duplicate(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_layout_not_found(temp_env: TemplyEnv):
+async def test_layout_not_found(version_info: VersionInfo, temp_env: TemplyEnv):
     """존재하지 않는 레이아웃 조회 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     with pytest.raises(LayoutNotFoundError):
         await layout_repository.get("non_existent_layout")
 
 
 @pytest.mark.asyncio
-async def test_layout_update(temp_env: TemplyEnv, user: User):
+async def test_layout_update(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """레이아웃 업데이트 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="test_layout",
         content="test layout content",
@@ -91,9 +91,9 @@ async def test_layout_update(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_layout_invalid_name(temp_env: TemplyEnv, user: User):
+async def test_layout_invalid_name(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """잘못된 레이아웃 이름 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     invalid_names = [
         "test/layout",  # 슬래시 포함
         "test layout",  # 공백 포함
@@ -119,9 +119,9 @@ async def test_layout_invalid_name(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_layout_delete(temp_env: TemplyEnv, user: User):
+async def test_layout_delete(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """레이아웃 삭제 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layout_create = LayoutCreate(
         name="test_layout",
         content="test layout content",
@@ -136,9 +136,9 @@ async def test_layout_delete(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_layout_with_block(temp_env: TemplyEnv, user: User):
+async def test_layout_with_block(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """블록이 포함된 레이아웃 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layout_content = """
     <!DOCTYPE html>
     <html>
@@ -168,9 +168,9 @@ async def test_layout_with_block(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_layout_with_extends(temp_env: TemplyEnv, user: User):
+async def test_layout_with_extends(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """상속이 포함된 레이아웃 생성 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
 
     # 기본 레이아웃 생성
     base_layout = await layout_repository.create(
@@ -199,9 +199,9 @@ async def test_layout_with_extends(temp_env: TemplyEnv, user: User):
 
 
 @pytest.mark.asyncio
-async def test_layout_multiple(temp_env: TemplyEnv, user: User):
+async def test_layout_multiple(version_info: VersionInfo, temp_env: TemplyEnv, user: User):
     """여러 레이아웃 생성/조회 테스트"""
-    layout_repository = LayoutRepository(temp_env)
+    layout_repository = LayoutRepository(version_info, temp_env)
     layouts = []
 
     # 여러 레이아웃 생성

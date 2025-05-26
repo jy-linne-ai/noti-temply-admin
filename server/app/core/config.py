@@ -20,7 +20,9 @@ class Config(BaseSettings):
 
     # 파일 설정
     file_encoding: str = "utf-8"
+    noti_temply_repo_url: str = "git@github.com:jy-linne-ai/noti-temply.git"
     noti_temply_dir: str = "noti-temply"
+    noti_temply_main_version_name: str = "main"
 
     def is_local(self) -> bool:
         """로컬 환경 여부"""
