@@ -30,41 +30,51 @@ class Meta(BaseModel):
 version_pattern = re.compile(r"^r\d+(?:_pr\d+)?$")
 
 
-class VersionInfo(BaseModel):
+class VersionInfo:
     """버전 정보 모델"""
 
-    version: str = Field(..., description="버전")
-    main_name: str = Field("main", description="메인 버전 이름")
-    revision_version: Optional[str] = Field(None, description="리비전 버전")
-    pr_number: Optional[str] = Field(None, description="PR 번호")
-    config: Config = Field(..., description="설정")
+    version: str
+    main_name: str
+    revision_version: str
+    pr_number: Optional[str] = None
+    is_root: bool = True
 
-    def __init__(self, config: Config, version: str) -> None:
-        super().__init__(
-            version=version, main_name=config.noti_temply_main_version_name, config=config
-        )
-        self.__post_init__()
-
-    @property
-    def is_root(self) -> bool:
-        """메인 버전인지 여부를 반환합니다."""
-        # pylint: disable=no-member
-        return self.version == self.config.noti_temply_main_version_name
-
-    def __post_init__(self) -> None:
-        assert self.main_name is not None
-        self.version = self.version.strip()
+    def __init__(
+        self,
+        config: Config,
+        version: str,
+    ):
+        self.version = version
+        self.main_name = config.noti_temply_main_version_name
         self.revision_version = self.version
-        if self.version != self.main_name:
-            if not version_pattern.match(self.version):
-                raise ValueError("Invalid version format")
+        self.pr_number = None
+        self.is_root = self.version == self.main_name
 
-            # 버전이 검증된 후에 분리
-            parts = self.version.split("_pr")
-            self.revision_version = parts[0]
-            self.pr_number = f"pr{parts[1]}" if len(parts) > 1 else None
+        # 메인 버전이 아닌 경우에만 버전 형식 검증
+        if self.version != self.main_name:
+            # 버전 형식이 맞지 않는 경우에도 기본값으로 설정
+            if not version_pattern.match(self.version):
+                self.revision_version = self.version
+                self.pr_number = None
+            else:
+                parts = self.version.split("_pr")
+                self.revision_version = parts[0]
+                self.pr_number = f"pr{parts[1]}" if len(parts) > 1 else None
 
     @classmethod
     def root_version(cls, config: Config) -> "VersionInfo":
         """버전 정보 모델 생성"""
-        return cls(config, config.noti_temply_main_version_name)
+        return cls(config=config, version=config.noti_temply_main_version_name)
+
+
+class ReturnVersionInfo(BaseModel):
+    """버전 정보 모델"""
+
+    version: str = Field(..., description="버전")
+    is_root: bool = Field(..., description="메인 버전 여부")
+
+
+class CreateVersionRequest(BaseModel):
+    """버전 생성 요청 모델"""
+
+    version: str = Field(..., description="생성할 버전")

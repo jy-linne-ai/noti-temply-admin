@@ -43,18 +43,20 @@ def get_version_info(
 
 
 def get_temply_env(
+    config: Config = Depends(get_config),
     version_info: VersionInfo = Depends(get_version_info),
 ) -> TemplyEnv:
     """Get Temply Env"""
     # cache ??
-    return TemplyVersionEnv(version_info.config, version_info).get_temply_env()
+    return TemplyVersionEnv(config, version_info).get_temply_env()
 
 
 def get_git_env(
+    config: Config = Depends(get_config),
     version_info: VersionInfo = Depends(get_version_info),
 ) -> GitEnv:
     """Get Git Env"""
-    return GitEnv(version_info)
+    return GitEnv(config, version_info)
 
 
 def get_layout_service(

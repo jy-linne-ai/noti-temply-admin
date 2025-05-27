@@ -24,6 +24,10 @@ import { PartialTemplate } from '@/types/partial';
 import { PartialEditor } from '@/components/features/partials/PartialEditor';
 import { PartialDrawer } from '@/components/partials/PartialDrawer';
 import { formatDate } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 interface PartialWithChildren extends PartialTemplate {
   children?: PartialWithChildren[];
@@ -39,9 +43,16 @@ export default function PartialsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPartial, setSelectedPartial] = useState<PartialTemplate | null>(null);
+  const [selectedPartial, setSelectedPartial] = useState<PartialWithChildren | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const isInitialized = useRef(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   const fetchRootPartials = async () => {
     console.log('fetchRootPartials called', new Date().toISOString());
@@ -166,12 +177,20 @@ export default function PartialsPage() {
   const handleCreate = async (partial: Partial<PartialTemplate>) => {
     try {
       const createdPartial = await api.createPartial(params.version as string, partial);
-      setIsCreateDialogOpen(false);
+      setIsDrawerOpen(false);
       fetchRootPartials();
-      router.push(`/versions/${params.version}/partials/${createdPartial.name}`);
+      setSnackbar({
+        open: true,
+        message: "파셜이 성공적으로 생성되었습니다.",
+        severity: "success"
+      });
     } catch (err) {
       console.error('Error creating partial:', err);
-      setError('파셜 생성에 실패했습니다.');
+      setSnackbar({
+        open: true,
+        message: "파셜 생성에 실패했습니다.",
+        severity: "error"
+      });
     }
   };
 
@@ -179,9 +198,62 @@ export default function PartialsPage() {
     setIsCreateDialogOpen(false);
   };
 
-  const handlePartialClick = (partial: PartialTemplate) => {
+  const handlePartialClick = (partial: PartialWithChildren) => {
     setSelectedPartial(partial);
     setIsDrawerOpen(true);
+  };
+
+  const handleNewPartial = () => {
+    setSelectedPartial({
+      name: '',
+      description: '',
+      content: '',
+      dependencies: [],
+      version: params.version as string,
+      layout: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    setIsDrawerOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!selectedPartial) return;
+
+    try {
+      const response = await fetch(
+        `/api/versions/${params.version}/partials/${selectedPartial.name}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: editContent }),
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to save");
+
+      setSnackbar({
+        open: true,
+        message: "파셜이 성공적으로 저장되었습니다.",
+        severity: "success"
+      });
+      setIsEditing(false);
+      fetchRootPartials();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "파셜 저장에 실패했습니다.",
+        severity: "error"
+      });
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setSelectedPartial(null);
+    setEditContent("");
   };
 
   const renderPartial = (partial: PartialWithChildren, level: number = 0) => (
@@ -294,10 +366,10 @@ export default function PartialsPage() {
           >
             새로고침
           </Button>
-          <Button
-            variant="contained"
+          <Button 
+            variant="contained" 
             startIcon={<AddIcon />}
-            onClick={() => setIsCreateDialogOpen(true)}
+            onClick={handleNewPartial}
           >
             파셜 추가
           </Button>
@@ -310,7 +382,7 @@ export default function PartialsPage() {
           <TextField
             placeholder="파셜 이름 검색..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
             size="small"
             sx={{ width: 300 }}
             InputProps={{
@@ -336,54 +408,37 @@ export default function PartialsPage() {
         {filteredPartials.map(partial => renderPartial(partial))}
       </Stack>
 
-      {/* 생성 다이얼로그 */}
-      <Dialog
-        open={isCreateDialogOpen}
-        onClose={handleCloseDialog}
-        maxWidth="md"
-        fullWidth
-        keepMounted={false}
-        disablePortal
-        disableEnforceFocus
-        disableAutoFocus
-      >
-        <DialogTitle>파셜 생성</DialogTitle>
-        <DialogContent dividers>
-          <PartialEditor
-            isNew={true}
-            partial={{
-              id: '',
-              name: '',
-              description: '',
-              content: '',
-              dependencies: [],
-              version: params.version as string,
-              layout: '',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }}
-            open={isCreateDialogOpen}
-            onOpenChange={setIsCreateDialogOpen}
-            onSubmit={handleCreate}
-            version={params.version as string}
-          />
-        </DialogContent>
-      </Dialog>
-
       {/* Drawer */}
       <PartialDrawer
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setSelectedPartial(null);
+        }}
         selectedPartial={selectedPartial}
         version={params.version as string}
+        onSave={handleCreate}
       />
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+      >
+        <Alert 
+          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       <Snackbar
         open={!!error}
         autoHideDuration={6000}
         onClose={() => setError(null)}
       >
-        <Alert severity="error" onClose={() => setError(null)}>
+        <Alert onClose={() => setError(null)} severity="error">
           {error}
         </Alert>
       </Snackbar>

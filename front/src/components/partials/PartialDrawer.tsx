@@ -38,6 +38,7 @@ interface PartialDrawerProps {
   version: string;
   onPartialChange?: (partial: PartialTemplate) => void;
   onDelete?: () => void;
+  onSave?: (partial: Partial<PartialTemplate>) => Promise<void>;
 }
 
 export function PartialDrawer({
@@ -47,6 +48,7 @@ export function PartialDrawer({
   version,
   onPartialChange,
   onDelete,
+  onSave,
 }: PartialDrawerProps) {
   const router = useRouter();
   const api = useApi();
@@ -144,10 +146,16 @@ export function PartialDrawer({
           ...currentPartial,
           name,
           description,
+          content: sourceContent,
         };
-        await api.updatePartial(version, currentPartial.name, updatedPartial);
-        if (onPartialChange) {
-          onPartialChange(updatedPartial);
+        
+        if (onSave) {
+          await onSave(updatedPartial);
+        } else {
+          await api.updatePartial(version, currentPartial.name, updatedPartial);
+          if (onPartialChange) {
+            onPartialChange(updatedPartial);
+          }
         }
         onClose();
       } catch (err) {
@@ -166,16 +174,18 @@ export function PartialDrawer({
       anchor="right"
       open={isOpen}
       onClose={handleClose}
-      PaperProps={{
-        sx: { 
-          width: {
-            xs: '100%',    // 모바일에서는 전체 너비
-            sm: '90%',     // 태블릿에서는 90%
-            md: '85%',     // 작은 데스크톱에서는 85%
-            lg: '80%',     // 큰 데스크톱에서는 80%
-            xl: '75%'      // 매우 큰 화면에서는 75%
-          },
-          maxWidth: '1600px'  // 최대 너비 제한
+      slotProps={{
+        paper: {
+          sx: { 
+            width: {
+              xs: '100%',    // 모바일에서는 전체 너비
+              sm: '90%',     // 태블릿에서는 90%
+              md: '85%',     // 작은 데스크톱에서는 85%
+              lg: '80%',     // 큰 데스크톱에서는 80%
+              xl: '75%'      // 매우 큰 화면에서는 75%
+            },
+            maxWidth: '1600px'  // 최대 너비 제한
+          }
         }
       }}
       keepMounted={false}
@@ -196,7 +206,7 @@ export function PartialDrawer({
       <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography variant="h5" component="h2">
-            {currentPartial.name}
+            {currentPartial?.name ? currentPartial.name : '새 파셜'}
           </Typography>
           <IconButton onClick={handleClose} size="small">
             <CloseIcon />
@@ -210,82 +220,84 @@ export function PartialDrawer({
           overflow: 'hidden'
         }}>
           {/* 기본 정보 테이블 */}
-          <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 1 }}>
-              {/* 설명 */}
-              <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                설명
-              </Typography>
-              <Typography>
-                {currentPartial.description || '설명이 없습니다.'}
-              </Typography>
+          {currentPartial?.name && (
+            <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 1 }}>
+                {/* 설명 */}
+                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                  설명
+                </Typography>
+                <Typography>
+                  {currentPartial.description || '설명이 없습니다.'}
+                </Typography>
 
-              {/* 의존성 */}
-              <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                의존성
-              </Typography>
-              <Box>
-                {currentPartial.dependencies && currentPartial.dependencies.length > 0 ? (
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                    {currentPartial.dependencies.map(dep => (
-                      <Chip
-                        key={dep}
-                        label={dep}
-                        variant="outlined"
-                        size="small"
-                        color="warning"
-                        onClick={() => handlePartialClick(dep)}
-                        sx={{ cursor: 'pointer' }}
-                      />
-                    ))}
-                  </Box>
-                ) : (
-                  <Typography color="text.secondary" variant="body2">의존성 없음</Typography>
-                )}
+                {/* 의존성 */}
+                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                  의존성
+                </Typography>
+                <Box>
+                  {currentPartial.dependencies && currentPartial.dependencies.length > 0 ? (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      {currentPartial.dependencies.map(dep => (
+                        <Chip
+                          key={dep}
+                          label={dep}
+                          variant="outlined"
+                          size="small"
+                          color="warning"
+                          onClick={() => handlePartialClick(dep)}
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography color="text.secondary" variant="body2">의존성 없음</Typography>
+                  )}
+                </Box>
+
+                {/* 참조하는 파셜 */}
+                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                  참조하는 파셜
+                </Typography>
+                <Box>
+                  {isLoading ? (
+                    <Typography>로딩 중...</Typography>
+                  ) : childPartials.length > 0 ? (
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      {childPartials.map(child => (
+                        <Chip
+                          key={child.name}
+                          label={child.name}
+                          variant="outlined"
+                          size="small"
+                          color="info"
+                          onClick={() => handlePartialClick(child.name)}
+                          sx={{ cursor: 'pointer' }}
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography color="text.secondary" variant="body2">이 파셜을 참조하는 파셜이 없습니다.</Typography>
+                  )}
+                </Box>
+
+                {/* 생성/수정 정보 */}
+                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                  생성
+                </Typography>
+                <Typography variant="body2">
+                  {formatDate(currentPartial.created_at)}
+                </Typography>
+
+                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                  수정
+                </Typography>
+                <Typography variant="body2">
+                  {formatDate(currentPartial.updated_at)}
+                </Typography>
               </Box>
-
-              {/* 참조하는 파셜 */}
-              <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                참조하는 파셜
-              </Typography>
-              <Box>
-                {isLoading ? (
-                  <Typography>로딩 중...</Typography>
-                ) : childPartials.length > 0 ? (
-                  <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                    {childPartials.map(child => (
-                      <Chip
-                        key={child.name}
-                        label={child.name}
-                        variant="outlined"
-                        size="small"
-                        color="info"
-                        onClick={() => handlePartialClick(child.name)}
-                        sx={{ cursor: 'pointer' }}
-                      />
-                    ))}
-                  </Box>
-                ) : (
-                  <Typography color="text.secondary" variant="body2">이 파셜을 참조하는 파셜이 없습니다.</Typography>
-                )}
-              </Box>
-
-              {/* 생성/수정 정보 */}
-              <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                생성
-              </Typography>
-              <Typography variant="body2">
-                {formatDate(currentPartial.created_at)}
-              </Typography>
-
-              <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                수정
-              </Typography>
-              <Typography variant="body2">
-                {formatDate(currentPartial.updated_at)}
-              </Typography>
-            </Box>
-          </Paper>
+            </Paper>
+          )}
 
           <TextField
             label="이름"
@@ -293,8 +305,9 @@ export function PartialDrawer({
             onChange={(e) => setName(e.target.value)}
             error={!!error}
             helperText={error}
-            disabled={isLoading || !!currentPartial}
+            disabled={isLoading || !!currentPartial?.name}
             fullWidth
+            sx={{ mb: 2 }}
           />
 
           <TextField
@@ -305,6 +318,7 @@ export function PartialDrawer({
             rows={2}
             disabled={isLoading}
             fullWidth
+            sx={{ mb: 2 }}
           />
 
           {/* 컨텐츠 탭 */}
@@ -354,15 +368,43 @@ export function PartialDrawer({
           </Box>
 
           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
+            {!currentPartial.name && (
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                startIcon={<SaveIcon />}
+                disabled={isLoading}
+              >
+                새로 만들기
+              </Button>
+            )}
+            {currentPartial.name && (
+              <>
+                <Button
+                  variant="outlined"
+                  onClick={handleDelete}
+                  startIcon={<DeleteIcon />}
+                  disabled={isLoading}
+                  color="error"
+                >
+                  삭제
+                </Button>
+                <Button
+                  variant="contained"
+                  onClick={handleSave}
+                  startIcon={<SaveIcon />}
+                  disabled={isLoading}
+                >
+                  저장
+                </Button>
+              </>
+            )}
             <Button
               variant="outlined"
-              onClick={() => {
-                onClose();
-                router.push(`/versions/${version}/partials/${currentPartial.name}`);
-              }}
-              startIcon={<EditIcon />}
+              onClick={handleClose}
+              disabled={isLoading}
             >
-              수정하기
+              취소
             </Button>
           </Box>
         </Box>
