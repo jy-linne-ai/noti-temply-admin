@@ -284,9 +284,8 @@ class TemplyEnv:
         """Make partials in Jinja format."""
         result = []
         for partial in partials:
-            partial_name = f"{self.partials_dir_name}/{partial}"
             result.append(
-                f"{{%- from '{partial_name}' import render as {self._get_import_name(partial_name)} with context -%}}"
+                f"{{%- from '{self.partials_dir_name}/{partial}' import render as {self._get_import_name(partial)} with context -%}}"
             )
         return result
 
@@ -324,7 +323,7 @@ class TemplyEnv:
     #     """Make template body in Jinja format."""
     #     return f"{{%- block content -%}}\n{content}\n{{%- endblock -%}}"
 
-    def validate_template_name(self, template: str) -> bool:
+    def validate_file_name(self, file_name: str) -> bool:
         """템플릿 이름이 유효한지 검사합니다.
 
         Args:
@@ -334,15 +333,15 @@ class TemplyEnv:
             bool: 파일명이 유효하면 True, 아니면 False
         """
         # 빈 문자열 체크
-        if not template or not template.strip():
+        if not file_name or not file_name.strip():
             return False
 
         # 숨김 파일, 시스템 파일, 임시 파일 제외
-        if template.startswith((".", "~", "..")):
+        if file_name.startswith((".", "~", "..")):
             return False
 
         # 파일명 길이 제한 (Windows MAX_PATH = 260)
-        if len(template) > 255:
+        if len(file_name) > 255:
             return False
 
         # 파일명에 허용되지 않는 문자 포함 여부 확인
@@ -350,7 +349,7 @@ class TemplyEnv:
         # Unix: /
         # 공백
         invalid_chars = r'\/:*?"<>| '
-        if any(char in template for char in invalid_chars):
+        if any(char in file_name for char in invalid_chars):
             return False
 
         return True
@@ -367,7 +366,7 @@ class TemplyEnv:
         """
         if not component:
             return False
-        if not self.validate_template_name(component):
+        if not self.validate_file_name(component):
             return False
         if component not in TemplateComponents.__members__:
             return False

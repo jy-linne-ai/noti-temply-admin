@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import {
   Box,
   Typography,
@@ -10,24 +10,20 @@ import {
   Snackbar,
   Alert,
   Stack,
-  Dialog,
-  DialogTitle,
-  DialogContent,
   Chip,
   IconButton,
-  TextField,
-  InputAdornment,
 } from '@mui/material';
-import { Add as AddIcon, ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon, ViewList as ViewListIcon, Refresh as RefreshIcon, Search } from '@mui/icons-material';
+import { 
+  Add as AddIcon, 
+  Refresh as RefreshIcon,
+  Edit as EditIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
+} from '@mui/icons-material';
 import { useApi } from '@/lib/api';
 import { PartialTemplate } from '@/types/partial';
-import { PartialEditor } from '@/components/features/partials/PartialEditor';
 import { PartialDrawer } from '@/components/partials/PartialDrawer';
 import { formatDate } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 
 interface PartialWithChildren extends PartialTemplate {
   children?: PartialWithChildren[];
@@ -36,69 +32,74 @@ interface PartialWithChildren extends PartialTemplate {
 
 export default function PartialsPage() {
   const params = useParams();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const api = useApi();
   const [partials, setPartials] = useState<PartialWithChildren[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPartial, setSelectedPartial] = useState<PartialWithChildren | null>(null);
+  const [selectedPartial, setSelectedPartial] = useState<PartialTemplate | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const isInitialized = useRef(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
     severity: 'success'
   });
 
-  const fetchRootPartials = async () => {
-    console.log('fetchRootPartials called', new Date().toISOString());
+  const fetchPartials = async () => {
     try {
-      // 루트 파셜 목록 가져오기
+      setIsLoading(true);
+      // 루트 파셜 목록 가져오기 (is_root=true인 파셜만)
       const rootPartials = await api.getPartials(params.version as string, true);
       
       // 루트 파셜을 5개씩 나누어 처리
       const BATCH_SIZE = 5;
       const partialsWithChildren: PartialWithChildren[] = [];
       
+      // 재귀적으로 자식 파셜을 로드하는 함수
+      const loadChildrenRecursively = async (partial: PartialTemplate, depth: number = 0): Promise<PartialWithChildren> => {
+        try {
+          // 최대 깊이 제한 (무한 루프 방지)
+          if (depth > 10) {
+            console.warn(`Maximum depth reached for partial: ${partial.name}`);
+            return {
+              ...partial,
+              isExpanded: false,
+              children: []
+            };
+          }
+
+          // 자식 파셜 목록 조회
+          const children = await api.getPartialChildren(params.version as string, partial.name);
+          console.log(`[${depth}단계] ${partial.name}의 자식 파셜:`, children);
+          
+          // 각 자식 파셜에 대해 재귀적으로 하위 파셜 로드
+          const childrenWithSubChildren = await Promise.all(
+            children.map(child => loadChildrenRecursively(child, depth + 1))
+          );
+
+          return {
+            ...partial,
+            isExpanded: false,
+            children: childrenWithSubChildren
+          };
+        } catch (err) {
+          console.error(`Error loading children for ${partial.name}:`, err);
+          return {
+            ...partial,
+            isExpanded: false,
+            children: []
+          };
+        }
+      };
+
       for (let i = 0; i < rootPartials.length; i += BATCH_SIZE) {
         const batch = rootPartials.slice(i, i + BATCH_SIZE);
         
-        // 현재 배치의 자식 파셜을 병렬로 로드
-        const childrenPromises = batch.map(p => 
-          api.getPartialChildren(params.version as string, p.name)
-            .then(children => ({
-              parentName: p.name,
-              children: children.map(c => ({
-                ...c,
-                isExpanded: true,
-                children: [] // 하위 파셜의 자식은 필요할 때 로드
-              }))
-            }))
-            .catch(err => {
-              console.error(`Error fetching children for ${p.name}:`, err);
-              return {
-                parentName: p.name,
-                children: []
-              };
-            })
+        // 현재 배치의 파셜들을 재귀적으로 로드
+        const batchResults = await Promise.all(
+          batch.map(partial => loadChildrenRecursively(partial))
         );
-
-        // 현재 배치의 로드 완료 대기
-        const childrenResults = await Promise.all(childrenPromises);
         
-        // 현재 배치의 결과를 partialsWithChildren에 추가
-        batch.forEach(p => {
-          const childrenResult = childrenResults.find(r => r.parentName === p.name);
-          partialsWithChildren.push({
-            ...p,
-            isExpanded: true,
-            children: childrenResult?.children || []
-          });
-        });
+        partialsWithChildren.push(...batchResults);
 
         // 다음 배치 전에 잠시 대기 (서버 부하 방지)
         if (i + BATCH_SIZE < rootPartials.length) {
@@ -108,152 +109,167 @@ export default function PartialsPage() {
       
       setPartials(partialsWithChildren);
     } catch (err) {
-      console.error('Error fetching root partials:', err);
+      console.error('Error fetching partials:', err);
       setError('파셜 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!isInitialized.current) {
-      console.log('Initial fetch', new Date().toISOString());
-      isInitialized.current = true;
-      fetchRootPartials();
-    }
+    fetchPartials();
   }, [params.version]);
 
-  // 필터링된 파셜 목록
-  const filteredPartials = useMemo(() => {
-    const filterPartial = (partial: PartialWithChildren): boolean => {
-      const matchesSearch = partial.name.toLowerCase().includes(searchQuery.toLowerCase());
-      if (!partial.children) return matchesSearch;
-      
-      const filteredChildren = partial.children
-        .map(child => filterPartial(child))
-        .filter(Boolean);
-      
-      return matchesSearch || filteredChildren.length > 0;
-    };
-
-    return partials.filter(filterPartial);
-  }, [partials, searchQuery]);
-
-  const handleToggleExpand = async (partial: PartialWithChildren) => {
-    if (!partial.children?.length && !partial.isExpanded) {
-      try {
-        console.log('Fetching children for:', partial.name);
-        const children = await api.getPartialChildren(params.version as string, partial.name);
-        const childrenWithExpanded = children.map(c => ({
-          ...c,
-          isExpanded: true,
-          children: [] // 하위 파셜의 자식은 필요할 때 로드
-        }));
-
-        const updatedPartials = partials.map(p => {
-          if (p.name === partial.name) {
-            return {
-              ...p,
-              children: childrenWithExpanded,
-              isExpanded: true
-            };
-          }
-          return p;
-        });
-        setPartials(updatedPartials);
-      } catch (err) {
-        console.error('Error fetching children:', err);
-        setError('하위 파셜 목록을 불러오는데 실패했습니다.');
-      }
-    } else {
-      const updatedPartials = partials.map(p => {
-        if (p.name === partial.name) {
-          return { ...p, isExpanded: !p.isExpanded };
-        }
-        return p;
-      });
-      setPartials(updatedPartials);
-    }
+  const handleNewPartial = () => {
+    setSelectedPartial(null);
+    setIsDrawerOpen(true);
   };
 
-  const handleCreate = async (partial: Partial<PartialTemplate>) => {
-    try {
-      const createdPartial = await api.createPartial(params.version as string, partial);
-      setIsDrawerOpen(false);
-      fetchRootPartials();
-      setSnackbar({
-        open: true,
-        message: "파셜이 성공적으로 생성되었습니다.",
-        severity: "success"
-      });
-    } catch (err) {
-      console.error('Error creating partial:', err);
-      setSnackbar({
-        open: true,
-        message: "파셜 생성에 실패했습니다.",
-        severity: "error"
-      });
-    }
-  };
-
-  const handleCloseDialog = () => {
-    setIsCreateDialogOpen(false);
-  };
-
-  const handlePartialClick = (partial: PartialWithChildren) => {
+  const handlePartialClick = (partial: PartialTemplate) => {
     setSelectedPartial(partial);
     setIsDrawerOpen(true);
   };
 
-  const handleNewPartial = () => {
-    setSelectedPartial({
-      name: '',
-      description: '',
-      content: '',
-      dependencies: [],
-      version: params.version as string,
-      layout: '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-    setIsDrawerOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (!selectedPartial) return;
-
+  const handleSave = async (partial: Partial<PartialTemplate>) => {
     try {
-      const response = await fetch(
-        `/api/versions/${params.version}/partials/${selectedPartial.name}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ content: editContent }),
-        }
-      );
-
-      if (!response.ok) throw new Error("Failed to save");
-
+      setIsLoading(true);
+      if (selectedPartial) {
+        await api.updatePartial(params.version as string, selectedPartial.name, partial);
+      } else {
+        await api.createPartial(params.version as string, partial);
+      }
+      setIsDrawerOpen(false);
+      fetchPartials();
       setSnackbar({
         open: true,
-        message: "파셜이 성공적으로 저장되었습니다.",
+        message: selectedPartial ? "파셜이 수정되었습니다." : "파셜이 생성되었습니다.",
         severity: "success"
       });
-      setIsEditing(false);
-      fetchRootPartials();
-    } catch (error) {
+    } catch (err) {
+      console.error('Error saving partial:', err);
       setSnackbar({
         open: true,
         message: "파셜 저장에 실패했습니다.",
         severity: "error"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleCancel = () => {
-    setIsEditing(false);
-    setSelectedPartial(null);
-    setEditContent("");
+  const handleDelete = async () => {
+    if (!selectedPartial) return;
+
+    try {
+      setIsLoading(true);
+      await api.deletePartial(params.version as string, selectedPartial.name);
+      setIsDrawerOpen(false);
+      fetchPartials();
+      setSnackbar({
+        open: true,
+        message: "파셜이 삭제되었습니다.",
+        severity: "success"
+      });
+    } catch (err) {
+      console.error('Error deleting partial:', err);
+      setSnackbar({
+        open: true,
+        message: "파셜 삭제에 실패했습니다.",
+        severity: "error"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleExpand = async (partial: PartialWithChildren) => {
+    if (!partial.children?.length && !partial.isExpanded) {
+      try {
+        // 재귀적으로 자식 파셜을 로드하는 함수
+        const loadChildrenRecursively = async (partial: PartialTemplate, depth: number = 0): Promise<PartialWithChildren> => {
+          try {
+            // 최대 깊이 제한 (무한 루프 방지)
+            if (depth > 10) {
+              console.warn(`Maximum depth reached for partial: ${partial.name}`);
+              return {
+                ...partial,
+                isExpanded: false,
+                children: []
+              };
+            }
+
+            // 자식 파셜 목록 조회
+            const children = await api.getPartialChildren(params.version as string, partial.name);
+            console.log(`[${depth}단계] ${partial.name}의 자식 파셜:`, children);
+            
+            // 각 자식 파셜에 대해 재귀적으로 하위 파셜 로드
+            const childrenWithSubChildren = await Promise.all(
+              children.map(child => loadChildrenRecursively(child, depth + 1))
+            );
+
+            return {
+              ...partial,
+              isExpanded: false,
+              children: childrenWithSubChildren
+            };
+          } catch (err) {
+            console.error(`Error loading children for ${partial.name}:`, err);
+            return {
+              ...partial,
+              isExpanded: false,
+              children: []
+            };
+          }
+        };
+
+        const partialWithChildren = await loadChildrenRecursively(partial);
+        console.log(`${partial.name}의 전체 하위 파셜:`, partialWithChildren);
+        
+        // 상태 업데이트 로직 수정
+        setPartials(prevPartials => {
+          const updatePartial = (partials: PartialWithChildren[]): PartialWithChildren[] => {
+            return partials.map(p => {
+              if (p.name === partial.name) {
+                return {
+                  ...partialWithChildren,
+                  isExpanded: true
+                };
+              }
+              if (p.children) {
+                return {
+                  ...p,
+                  children: updatePartial(p.children)
+                };
+              }
+              return p;
+            });
+          };
+          return updatePartial(prevPartials);
+        });
+      } catch (err) {
+        console.error('Error fetching children:', err);
+        setError('하위 파셜 목록을 불러오는데 실패했습니다.');
+      }
+    } else {
+      // 상태 업데이트 로직 수정
+      setPartials(prevPartials => {
+        const updatePartial = (partials: PartialWithChildren[]): PartialWithChildren[] => {
+          return partials.map(p => {
+            if (p.name === partial.name) {
+              return { ...p, isExpanded: !p.isExpanded };
+            }
+            if (p.children) {
+              return {
+                ...p,
+                children: updatePartial(p.children)
+              };
+            }
+            return p;
+          });
+        };
+        return updatePartial(prevPartials);
+      });
+    }
   };
 
   const renderPartial = (partial: PartialWithChildren, level: number = 0) => (
@@ -269,40 +285,57 @@ export default function PartialsPage() {
             transform: 'translateY(-2px)',
             boxShadow: (theme) => theme.shadows[4],
           },
-          ml: level * 2,
-          borderLeft: level > 0 ? '2px solid' : 'none',
-          borderColor: 'primary.main',
+          ml: level * 3,
           position: 'relative',
           '&::before': level > 0 ? {
             content: '""',
             position: 'absolute',
-            left: -2,
+            left: -12,
             top: '50%',
-            width: 8,
+            width: 12,
             height: 2,
-            bgcolor: 'primary.main',
+            bgcolor: 'divider',
+          } : {},
+          '&::after': level > 0 ? {
+            content: '""',
+            position: 'absolute',
+            left: -12,
+            top: 0,
+            width: 2,
+            height: '100%',
+            bgcolor: 'divider',
           } : {},
         }}
       >
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleExpand(partial);
-              }}
-              sx={{
-                color: 'primary.main',
-                '&:hover': {
-                  bgcolor: 'primary.light',
-                },
-              }}
-            >
-              {partial.isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-            </IconButton>
+            {partial.children && partial.children.length > 0 && (
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleExpand(partial);
+                }}
+                sx={{
+                  color: 'primary.main',
+                  '&:hover': {
+                    bgcolor: 'primary.light',
+                  },
+                }}
+              >
+                {partial.isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+              </IconButton>
+            )}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-              <Typography variant="h6" sx={{ fontWeight: 500 }}>{partial.name}</Typography>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 500,
+                  color: level > 0 ? 'text.secondary' : 'text.primary'
+                }}
+              >
+                {partial.name}
+              </Typography>
               {partial.description && (
                 <Typography variant="body2" color="text.secondary">
                   - {partial.description}
@@ -321,10 +354,10 @@ export default function PartialsPage() {
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                 <Typography variant="caption" color="text.secondary">
-                  생성: {formatDate(partial.created_at)}
+                  생성: {formatDate(partial.created_at || '')}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  수정: {formatDate(partial.updated_at)}
+                  수정: {formatDate(partial.updated_at || '')}
                 </Typography>
               </Box>
             </Box>
@@ -344,7 +377,7 @@ export default function PartialsPage() {
           )}
         </Box>
       </Paper>
-      {partial.isExpanded && partial.children && (
+      {partial.isExpanded && partial.children && partial.children.length > 0 && (
         <Box sx={{ mt: 0.5 }}>
           {partial.children.map(child => renderPartial(child, level + 1))}
         </Box>
@@ -355,60 +388,33 @@ export default function PartialsPage() {
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
+        <Typography variant="h5" component="h1">
           파셜 관리
         </Typography>
-        <Stack direction="row" spacing={2}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
             variant="outlined"
-            onClick={fetchRootPartials}
             startIcon={<RefreshIcon />}
+            onClick={fetchPartials}
+            disabled={isLoading}
           >
             새로고침
           </Button>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<AddIcon />}
             onClick={handleNewPartial}
+            disabled={isLoading}
           >
-            파셜 추가
+            새로 만들기
           </Button>
-        </Stack>
+        </Box>
       </Box>
 
-      {/* 필터 섹션 */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
-          <TextField
-            placeholder="파셜 이름 검색..."
-            value={searchQuery}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            size="small"
-            sx={{ width: 300 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-          />
-          {searchQuery && (
-            <Button
-              size="small"
-              onClick={() => setSearchQuery('')}
-            >
-              필터 초기화
-            </Button>
-          )}
-        </Stack>
-      </Paper>
-
       <Stack spacing={0.5}>
-        {filteredPartials.map(partial => renderPartial(partial))}
+        {partials.map(partial => renderPartial(partial))}
       </Stack>
 
-      {/* Drawer */}
       <PartialDrawer
         isOpen={isDrawerOpen}
         onClose={() => {
@@ -417,29 +423,21 @@ export default function PartialsPage() {
         }}
         selectedPartial={selectedPartial}
         version={params.version as string}
-        onSave={handleCreate}
+        onSave={handleSave}
+        onDelete={handleDelete}
+        onNew={handleNewPartial}
       />
 
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
-        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
       >
         <Alert 
-          onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
           severity={snackbar.severity}
         >
           {snackbar.message}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={() => setError(null)}
-      >
-        <Alert onClose={() => setError(null)} severity="error">
-          {error}
         </Alert>
       </Snackbar>
     </Box>

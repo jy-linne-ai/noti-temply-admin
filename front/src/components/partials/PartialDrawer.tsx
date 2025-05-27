@@ -17,12 +17,20 @@ import {
   Divider,
   TextField,
   CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  OutlinedInput,
+  Autocomplete,
 } from '@mui/material';
 import { 
   Close as CloseIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Save as SaveIcon,
+  Refresh as RefreshIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
 import { PartialTemplate } from '@/types/partial';
@@ -39,6 +47,7 @@ interface PartialDrawerProps {
   onPartialChange?: (partial: PartialTemplate) => void;
   onDelete?: () => void;
   onSave?: (partial: Partial<PartialTemplate>) => Promise<void>;
+  onNew?: () => void;
 }
 
 export function PartialDrawer({
@@ -49,6 +58,7 @@ export function PartialDrawer({
   onPartialChange,
   onDelete,
   onSave,
+  onNew,
 }: PartialDrawerProps) {
   const router = useRouter();
   const api = useApi();
@@ -61,6 +71,10 @@ export function PartialDrawer({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
+  const [dependencyError, setDependencyError] = useState('');
+  const [hasChanges, setHasChanges] = useState(false);
+  const [availablePartials, setAvailablePartials] = useState<PartialTemplate[]>([]);
+  const [selectedDependency, setSelectedDependency] = useState<string>('');
 
   // selectedPartial이 변경될 때마다 currentPartial 업데이트
   useEffect(() => {
@@ -70,8 +84,48 @@ export function PartialDrawer({
       setPreviewContent(selectedPartial.content || '');
       setName(selectedPartial.name);
       setDescription(selectedPartial.description || '');
+      // 파셜 목록 로드 - 초기 로드 시에만 실행
+      if (availablePartials.length === 0) {
+        loadAvailablePartials();
+      }
+    } else {
+      // 새로 만들기 시 상태 초기화
+      setCurrentPartial({
+        name: '',
+        description: '',
+        content: '',
+        dependencies: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        version: version,
+        layout: 'default'
+      });
+      setSourceContent('');
+      setPreviewContent('');
+      setName('');
+      setDescription('');
+      setError('');
+      setDependencyError('');
+      setSelectedDependency('');
+      setChildPartials([]);
+      // 새로 만들기 시에도 의존성 리스트는 초기 로드 시에만 실행
+      if (availablePartials.length === 0) {
+        loadAvailablePartials();
+      }
     }
-  }, [selectedPartial]);
+  }, [selectedPartial, version]);
+
+  // 의존성 추가/제거 시에만 파셜 목록 업데이트
+  useEffect(() => {
+    if (currentPartial?.dependencies) {
+      setAvailablePartials(prev => 
+        prev.map(p => ({
+          ...p,
+          isAdded: currentPartial.dependencies?.includes(p.name) || false
+        }))
+      );
+    }
+  }, [currentPartial?.dependencies]);
 
   // 소스 변경 시 프리뷰 업데이트
   useEffect(() => {
@@ -81,6 +135,9 @@ export function PartialDrawer({
   // 자식 파셜 목록 로드
   const loadChildPartials = async (partialName: string) => {
     try {
+      // 빈 이름인 경우 조회하지 않음
+      if (!partialName) return;
+
       setIsLoading(true);
       const children = await api.getPartialChildren(version, partialName);
       // 자기 자신을 제외한 파셜만 표시
@@ -95,10 +152,79 @@ export function PartialDrawer({
 
   // 선택된 파셜이 변경될 때마다 자식 파셜 목록 로드
   useEffect(() => {
-    if (currentPartial) {
+    if (currentPartial?.name) {
       loadChildPartials(currentPartial.name);
     }
   }, [currentPartial?.name]);
+
+  // 사용 가능한 파셜 목록 로드
+  const loadAvailablePartials = async () => {
+    try {
+      console.log('=== 파셜 목록 로드 시작 ===');
+      // 루트 파셜 목록 가져오기 (is_root=true인 파셜만)
+      const rootPartials = await api.getPartials(version, true);
+      console.log('루트 파셜 목록:', rootPartials);
+      
+      // 재귀적으로 자식 파셜을 로드하는 함수
+      const loadChildrenRecursively = async (partial: PartialTemplate, depth: number = 0, rootName: string): Promise<Array<PartialTemplate & { depth: number; root_name: string }>> => {
+        try {
+          console.log(`[${depth}단계] ${partial.name}의 자식 파셜 로드 시작`);
+          // 최대 깊이 제한 (무한 루프 방지)
+          if (depth > 10) {
+            console.warn(`Maximum depth reached for partial: ${partial.name}`);
+            return [];
+          }
+
+          // 자식 파셜 목록 조회
+          const children = await api.getPartialChildren(version, partial.name);
+          console.log(`[${depth}단계] ${partial.name}의 자식 파셜:`, children);
+          
+          // 각 자식 파셜에 대해 재귀적으로 하위 파셜 로드
+          const childrenWithSubChildren = await Promise.all(
+            children.map(child => loadChildrenRecursively(child, depth + 1, rootName))
+          );
+
+          // 현재 파셜과 모든 하위 파셜을 하나의 배열로 합침
+          const result = [
+            { ...partial, depth, root_name: rootName },
+            ...childrenWithSubChildren.flat()
+          ];
+          console.log(`[${depth}단계] ${partial.name}의 전체 하위 파셜:`, result);
+          return result;
+        } catch (err) {
+          console.error(`Error loading children for ${partial.name}:`, err);
+          return [{ ...partial, depth, root_name: rootName }];
+        }
+      };
+
+      // 모든 루트 파셜의 하위 파셜을 재귀적으로 로드
+      const allPartials = await Promise.all(
+        rootPartials.map(partial => loadChildrenRecursively(partial, 0, partial.name))
+      );
+      console.log('모든 파셜 목록:', allPartials);
+
+      // 중복 제거 및 필터링 (자기 자신만 제외)
+      const uniquePartials = Array.from(
+        new Map(
+          allPartials.flat()
+            .filter(p => p.name !== currentPartial?.name) // 자기 자신만 제외
+            .map(p => [p.name, p])
+        ).values()
+      );
+      console.log('중복 제거 후 파셜 목록:', uniquePartials);
+
+      // 현재 의존성 상태에 따라 isAdded 설정
+      const partialsWithAddedState = uniquePartials.map(p => ({
+        ...p,
+        isAdded: currentPartial?.dependencies?.includes(p.name) || false
+      }));
+      console.log('최종 파셜 목록:', partialsWithAddedState);
+
+      setAvailablePartials(partialsWithAddedState);
+    } catch (err) {
+      console.error('Error loading available partials:', err);
+    }
+  };
 
   // 파셜 클릭 핸들러 (자식 파셜과 의존성 모두에서 사용)
   const handlePartialClick = async (partialName: string) => {
@@ -111,18 +237,123 @@ export function PartialDrawer({
       ]);
 
       if (updatedPartial) {
+        // 현재 파셜 정보 업데이트
         setCurrentPartial(updatedPartial);
+        // 컨텐츠 업데이트
+        setSourceContent(updatedPartial.content || '');
+        setPreviewContent(updatedPartial.content || '');
+        setName(updatedPartial.name);
+        setDescription(updatedPartial.description || '');
+        setHasChanges(false);
+        
+        // 부모 컴포넌트에 변경 알림
         if (onPartialChange) {
           onPartialChange(updatedPartial);
         }
+        
         // 자기 자신을 제외한 파셜만 표시
         const filteredChildren = children.filter(child => child.name !== partialName);
         setChildPartials(filteredChildren);
-        setName(updatedPartial.name);
-        setDescription(updatedPartial.description || '');
       }
     } catch (err) {
       console.error('Error loading partial:', err);
+      setError('파셜을 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 의존성 추가
+  const handleAddDependency = () => {
+    if (!selectedDependency) return;
+    
+    // 이미 추가된 파셜인지 확인
+    if (currentPartial?.dependencies?.includes(selectedDependency)) {
+      setDependencyError('이미 추가된 파셜입니다.');
+      return;
+    }
+
+    const updatedDependencies = [
+      ...(currentPartial?.dependencies || []),
+      selectedDependency
+    ];
+
+    setCurrentPartial(prev => prev ? {
+      ...prev,
+      dependencies: updatedDependencies
+    } : null);
+
+    // 선택된 의존성의 상태만 업데이트
+    setAvailablePartials(prev => 
+      prev.map(p => ({
+        ...p,
+        isAdded: p.name === selectedDependency ? true : p.isAdded
+      }))
+    );
+    setSelectedDependency('');
+    setDependencyError('');
+  };
+
+  // 의존성 제거
+  const handleRemoveDependency = (dependencyName: string) => {
+    const updatedDependencies = currentPartial?.dependencies?.filter(
+      dep => dep !== dependencyName
+    ) || [];
+
+    setCurrentPartial(prev => prev ? {
+      ...prev,
+      dependencies: updatedDependencies
+    } : null);
+
+    // 제거된 의존성의 상태만 업데이트
+    setAvailablePartials(prev => 
+      prev.map(p => ({
+        ...p,
+        isAdded: p.name === dependencyName ? false : p.isAdded
+      }))
+    );
+  };
+
+  // 파셜 삭제 시 상태 초기화
+  const handleDelete = () => {
+    if (onDelete) {
+      if (window.confirm('정말로 이 파셜을 삭제하시겠습니까?')) {
+        // 의존성 목록 초기화
+        setAvailablePartials(prev => 
+          prev.map(p => ({
+            ...p,
+            isAdded: false
+          }))
+        );
+        onDelete();
+      }
+    }
+  };
+
+  // 새로고침 시 상태 초기화
+  const handleRefresh = async () => {
+    try {
+      setIsLoading(true);
+      const partialDetail = await api.getPartial(version, selectedPartial?.name || '');
+      
+      // 기본 정보 초기화
+      setName(partialDetail.name);
+      setDescription(partialDetail.description || '');
+      setSourceContent(partialDetail.content || '');
+      setHasChanges(false);
+
+      // 의존성 관련 상태 초기화
+      setSelectedDependency('');
+      setDependencyError('');
+      
+      // 현재 파셜 정보 업데이트
+      setCurrentPartial(partialDetail);
+
+      // 사용 가능한 파셜 목록 다시 로드
+      await loadAvailablePartials();
+    } catch (err) {
+      console.error('Error fetching partial detail:', err);
+      setError('파셜 상세 정보를 불러오는데 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -132,13 +363,17 @@ export function PartialDrawer({
     onClose();
   };
 
-  const handleDelete = () => {
-    if (onDelete) {
-      onDelete();
-    }
-  };
-
   const handleSave = async () => {
+    // 필수 필드 검증
+    if (!name.trim()) {
+      setError('이름은 필수 입력 항목입니다.');
+      return;
+    }
+    if (!sourceContent.trim()) {
+      setError('소스 내용은 필수 입력 항목입니다.');
+      return;
+    }
+
     if (currentPartial) {
       try {
         setIsLoading(true);
@@ -167,7 +402,7 @@ export function PartialDrawer({
     }
   };
 
-  if (!isOpen || !currentPartial) return null;
+  if (!isOpen) return null;
 
   return (
     <Drawer
@@ -204,62 +439,339 @@ export function PartialDrawer({
       }}
     >
       <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h5" component="h2">
-            {currentPartial?.name ? currentPartial.name : '새 파셜'}
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          mb: 3,
+          position: 'sticky',
+          top: 0,
+          bgcolor: 'background.paper',
+          zIndex: 1,
+          pb: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider'
+        }}>
+          <Typography variant="h5" component="h2" id="drawer-title">
+            {selectedPartial ? '파셜 수정' : '파셜 추가'}
           </Typography>
-          <IconButton onClick={handleClose} size="small">
-            <CloseIcon />
-          </IconButton>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {selectedPartial && (
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                새로고침
+              </Button>
+            )}
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={isLoading}
+              startIcon={isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+            >
+              저장
+            </Button>
+            {onNew && (
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => {
+                  setName('');
+                  setDescription('');
+                  setSourceContent('');
+                  setPreviewContent('');
+                  setHasChanges(false);
+                  setError('');
+                  setDependencyError('');
+                  setSelectedDependency('');
+                  setChildPartials([]);
+                  setAvailablePartials([]);
+                  onNew();
+                }}
+                disabled={isLoading}
+              >
+                새로 만들기
+              </Button>
+            )}
+            {selectedPartial && onDelete && (
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={handleDelete}
+                disabled={isLoading}
+                startIcon={<DeleteIcon />}
+              >
+                삭제
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              onClick={handleClose}
+              disabled={isLoading}
+            >
+              취소
+            </Button>
+            <IconButton 
+              onClick={handleClose} 
+              size="small"
+              aria-label="닫기"
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </Box>
 
         <Box sx={{ 
           display: 'flex', 
           flexDirection: 'column', 
           height: 'calc(100% - 80px)',
-          overflow: 'hidden'
+          overflow: 'auto',
+          pt: 2
         }}>
-          {/* 기본 정보 테이블 */}
-          {currentPartial?.name && (
-            <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 1 }}>
-                {/* 설명 */}
-                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                  설명
-                </Typography>
-                <Typography>
-                  {currentPartial.description || '설명이 없습니다.'}
-                </Typography>
 
-                {/* 의존성 */}
-                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
+          <TextField
+            label="이름"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            error={!!error}
+            helperText={error}
+            disabled={isLoading || !!currentPartial?.name}
+            required
+            fullWidth
+            sx={{ 
+              mb: 2,
+              '& .MuiInputLabel-root': {
+                fontSize: '1rem',
+                fontWeight: 500,
+                color: 'text.primary',
+                '&.Mui-focused': {
+                  color: 'primary.main',
+                },
+              },
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: 'primary.main',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                  borderWidth: 2,
+                },
+              },
+            }}
+          />
+
+          <TextField
+            label="설명"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            multiline
+            rows={2}
+            disabled={isLoading}
+            fullWidth
+            sx={{ 
+              mb: 2,
+              '& .MuiInputLabel-root': {
+                fontSize: '1rem',
+                fontWeight: 500,
+                color: 'text.primary',
+                '&.Mui-focused': {
+                  color: 'primary.main',
+                },
+              },
+              '& .MuiOutlinedInput-root': {
+                '&:hover fieldset': {
+                  borderColor: 'primary.main',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                  borderWidth: 2,
+                },
+              },
+            }}
+          />
+
+          {/* 기본 정보 테이블 */}
+          <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* 의존성 */}
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   의존성
                 </Typography>
-                <Box>
-                  {currentPartial.dependencies && currentPartial.dependencies.length > 0 ? (
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                      {currentPartial.dependencies.map(dep => (
-                        <Chip
-                          key={dep}
-                          label={dep}
-                          variant="outlined"
-                          size="small"
-                          color="warning"
-                          onClick={() => handlePartialClick(dep)}
-                          sx={{ cursor: 'pointer' }}
-                        />
-                      ))}
-                    </Box>
+                <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                  <Autocomplete
+                    value={selectedDependency}
+                    onChange={(_, newValue) => {
+                      if (newValue && currentPartial?.dependencies?.includes(newValue)) {
+                        setDependencyError('이미 추가된 파셜입니다.');
+                        return;
+                      }
+                      if (newValue === currentPartial?.name) {
+                        setDependencyError('자기 자신은 의존성으로 추가할 수 없습니다.');
+                        return;
+                      }
+                      setSelectedDependency(newValue || '');
+                      setDependencyError('');
+                    }}
+                    options={availablePartials
+                      .filter(p => p.name !== currentPartial?.name) // 자기 자신 제외
+                      .map(p => p.name)}
+                    disabled={availablePartials.length === 0}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="의존성 추가"
+                        size="small"
+                        fullWidth
+                        error={!!dependencyError}
+                        helperText={dependencyError}
+                      />
+                    )}
+                    renderOption={(props, option) => {
+                      const partial = availablePartials.find(p => p.name === option);
+                      const isAdded = currentPartial?.dependencies?.includes(option);
+                      if (!partial) return null;
+
+                      // key를 제외한 나머지 props
+                      const { key, ...otherProps } = props;
+
+                      return (
+                        <li 
+                          key={key}
+                          {...otherProps}
+                          style={{ 
+                            opacity: isAdded ? 0.5 : 1,
+                            pointerEvents: isAdded ? 'none' : 'auto'
+                          }}
+                        >
+                          <Box sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            width: '100%',
+                            pl: ((partial.depth || 0) * 2) + 2,
+                          }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                              {(partial.depth || 0) > 0 && (
+                                <Box 
+                                  component="span" 
+                                  sx={{ 
+                                    width: '12px', 
+                                    height: '1px', 
+                                    bgcolor: 'divider',
+                                    mr: 1,
+                                    position: 'relative',
+                                    '&::before': {
+                                      content: '""',
+                                      position: 'absolute',
+                                      left: 0,
+                                      top: 0,
+                                      width: '1px',
+                                      height: '100%',
+                                      bgcolor: 'divider',
+                                    }
+                                  }} 
+                                />
+                              )}
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontWeight: 500,
+                                  color: isAdded ? 'text.secondary' : 'text.primary',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5
+                                }}
+                              >
+                                {partial.name}
+                                {isAdded && (
+                                  <Typography 
+                                    component="span" 
+                                    variant="caption" 
+                                    color="success.main"
+                                    sx={{ ml: 1 }}
+                                  >
+                                    (추가됨)
+                                  </Typography>
+                                )}
+                              </Typography>
+                              <Typography 
+                                variant="caption" 
+                                color="text.secondary"
+                                sx={{ ml: 'auto' }}
+                              >
+                                {partial.root_name}
+                              </Typography>
+                            </Box>
+                            {partial.description && (
+                              <Typography 
+                                variant="caption" 
+                                color="text.secondary"
+                                sx={{ 
+                                  pl: (partial.depth || 0) > 0 ? '24px' : 0,
+                                  mt: 0.5
+                                }}
+                              >
+                                {partial.description}
+                              </Typography>
+                            )}
+                          </Box>
+                        </li>
+                      );
+                    }}
+                    filterOptions={(options, { inputValue }) => {
+                      const searchTerm = inputValue.toLowerCase();
+                      return options.filter(option => {
+                        const partial = availablePartials.find(p => p.name === option);
+                        if (!partial) return false;
+                        
+                        return (
+                          partial.name.toLowerCase().includes(searchTerm) ||
+                          (partial.description || '').toLowerCase().includes(searchTerm)
+                        );
+                      });
+                    }}
+                    isOptionEqualToValue={(option, value) => option === value}
+                    getOptionLabel={(option) => option}
+                    sx={{ flex: 1 }}
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={handleAddDependency}
+                    disabled={!selectedDependency || !!dependencyError}
+                    sx={{ minWidth: '100px' }}
+                  >
+                    추가
+                  </Button>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  {currentPartial?.dependencies && currentPartial.dependencies.length > 0 ? (
+                    currentPartial.dependencies.map(dep => (
+                      <Chip
+                        key={dep}
+                        label={dep}
+                        variant="outlined"
+                        size="small"
+                        color="warning"
+                        onClick={() => handlePartialClick(dep)}
+                        onDelete={() => handleRemoveDependency(dep)}
+                        sx={{ cursor: 'pointer' }}
+                      />
+                    ))
                   ) : (
                     <Typography color="text.secondary" variant="body2">의존성 없음</Typography>
                   )}
                 </Box>
+              </Box>
 
-                {/* 참조하는 파셜 */}
-                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                  참조하는 파셜
-                </Typography>
+              {/* 참조하는 파셜 - 수정 시에만 표시 */}
+              {selectedPartial && (
                 <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    이 파셜을 참조하는 파셜들
+                  </Typography>
                   {isLoading ? (
                     <Typography>로딩 중...</Typography>
                   ) : childPartials.length > 0 ? (
@@ -280,47 +792,37 @@ export function PartialDrawer({
                     <Typography color="text.secondary" variant="body2">이 파셜을 참조하는 파셜이 없습니다.</Typography>
                   )}
                 </Box>
+              )}
 
-                {/* 생성/수정 정보 */}
-                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                  생성
-                </Typography>
-                <Typography variant="body2">
-                  {formatDate(currentPartial.created_at)}
-                </Typography>
-
-                <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'center' }}>
-                  수정
-                </Typography>
-                <Typography variant="body2">
-                  {formatDate(currentPartial.updated_at)}
-                </Typography>
-              </Box>
-            </Paper>
-          )}
-
-          <TextField
-            label="이름"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            error={!!error}
-            helperText={error}
-            disabled={isLoading || !!currentPartial?.name}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-
-          <TextField
-            label="설명"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            multiline
-            rows={2}
-            disabled={isLoading}
-            fullWidth
-            sx={{ mb: 2 }}
-          />
-
+              {/* 생성/수정 정보 - 수정 시에만 표시 */}
+              {selectedPartial && (
+                <Box sx={{ display: 'flex', gap: 4 }}>
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      생성
+                    </Typography>
+                    <Typography variant="body2">
+                      {formatDate(currentPartial?.created_at)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {currentPartial?.created_by || '알 수 없음'}
+                    </Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      수정
+                    </Typography>
+                    <Typography variant="body2">
+                      {formatDate(currentPartial?.updated_at)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {currentPartial?.updated_by || '알 수 없음'}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          </Paper>
           {/* 컨텐츠 탭 */}
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
@@ -365,47 +867,6 @@ export function PartialDrawer({
                 />
               </Box>
             )}
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
-            {!currentPartial.name && (
-              <Button
-                variant="contained"
-                onClick={handleSave}
-                startIcon={<SaveIcon />}
-                disabled={isLoading}
-              >
-                새로 만들기
-              </Button>
-            )}
-            {currentPartial.name && (
-              <>
-                <Button
-                  variant="outlined"
-                  onClick={handleDelete}
-                  startIcon={<DeleteIcon />}
-                  disabled={isLoading}
-                  color="error"
-                >
-                  삭제
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={handleSave}
-                  startIcon={<SaveIcon />}
-                  disabled={isLoading}
-                >
-                  저장
-                </Button>
-              </>
-            )}
-            <Button
-              variant="outlined"
-              onClick={handleClose}
-              disabled={isLoading}
-            >
-              취소
-            </Button>
           </Box>
         </Box>
       </Box>

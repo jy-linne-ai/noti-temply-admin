@@ -64,7 +64,9 @@ class TemplateParser:
             else:
                 await self._initialize()
 
-    async def _parse_component(self, template: str, component: str) -> TemplateComponentMetaData:
+    async def _parse_component(
+        self, template_name: str, component_name: str
+    ) -> TemplateComponentMetaData:
         """Parse a component file.
 
         Args:
@@ -74,14 +76,14 @@ class TemplateParser:
             TemplateComponentMetaData: Parsed component metadata
         """
         try:
-            content, _, _ = self.env.load_component_source(template, component)
+            content, _, _ = self.env.load_component_source(template_name, component_name)
             meta, block = MetaParser.parse(content)
             layout, block = await self._extract_layout(block)
             partials, block = await self._extract_partials(block)
             # block = await self._remove_block_wrapper(block)
             return TemplateComponentMetaData(
-                template=template,
-                component=component,
+                template=template_name,
+                component=component_name,
                 content=block.strip(),
                 layout=layout,
                 partials=partials,
@@ -92,7 +94,9 @@ class TemplateParser:
                 updated_by=meta.updated_by,
             )
         except FileNotFoundError as e:
-            raise TemplateNotFoundError(f"Template {template}/{component} not found: {e}") from e
+            raise TemplateNotFoundError(
+                f"Template {template_name}/{component_name} not found: {e}"
+            ) from e
 
     async def _parse_component_files(self) -> List[TemplateComponentMetaData]:
         """Parse component files and extract metadata.
@@ -166,7 +170,7 @@ class TemplateParser:
     async def get_templates(self) -> List[TemplateComponentMetaData]:
         """Get all templates."""
         await self._ensure_initialized()
-        return self.nodes.values()
+        return list(self.nodes.values())
 
     async def get_template_names(self) -> List[str]:
         """Get all templates."""
@@ -182,30 +186,36 @@ class TemplateParser:
         await self._ensure_initialized()
         return list(self.nodes.values())
 
-    async def get_components_by_template(self, template: str) -> List[TemplateComponentMetaData]:
+    async def get_components_by_template(
+        self, template_name: str
+    ) -> List[TemplateComponentMetaData]:
         """Get all components in a template."""
         await self._ensure_initialized()
-        return [component for component in self.nodes.values() if component.template == template]
+        return [
+            component for component in self.nodes.values() if component.template == template_name
+        ]
 
-    async def get_component_names_by_template(self, template: str) -> List[str]:
+    async def get_component_names_by_template(self, template_name: str) -> List[str]:
         """Get all component names in a template."""
         await self._ensure_initialized()
         return [
             component.component
             for component in self.nodes.values()
-            if component.template == template
+            if component.template == template_name
         ]
 
-    async def get_component(self, template: str, component: str) -> TemplateComponentMetaData:
+    async def get_component(
+        self, template_name: str, component_name: str
+    ) -> TemplateComponentMetaData:
         """Get a template component by name.
 
         Args:
             name: Name of the template
         """
         await self._ensure_initialized()
-        component = self.nodes.get(template + "/" + component)
+        component = self.nodes.get(template_name + "/" + component_name)
         if not component:
-            raise TemplateNotFoundError(f"Template {template}/{component} not found")
+            raise TemplateNotFoundError(f"Template {template_name}/{component_name} not found")
         return component
 
     async def print_component_tree(
@@ -258,8 +268,8 @@ class TemplateParser:
     async def create_component(
         self,
         user: User,
-        template: str,
-        component: str,
+        template_name: str,
+        component_name: str,
         content: str,
         description: Optional[str] = None,
         layout: Optional[str] = None,
@@ -287,26 +297,26 @@ class TemplateParser:
         await self._ensure_initialized()
         self._initialized = False
         try:
-            if not self.env.validate_template_name(template):
-                raise ValueError(f"Invalid template name: {template}")
+            if not self.env.validate_file_name(template_name):
+                raise ValueError(f"Invalid template name: {template_name}")
 
-            if not self.env.validate_component_name(component):
-                raise ValueError(f"Invalid component name: {component}")
+            if not self.env.validate_component_name(component_name):
+                raise ValueError(f"Invalid component name: {component_name}")
 
             if layout:
-                if not self.env.validate_template_name(layout):
+                if not self.env.validate_file_name(layout):
                     raise ValueError(f"Invalid layout name: {layout}")
                 if not (self.env.layouts_dir / layout).exists():
                     raise LayoutNotFoundError(f"Layout {layout} not found")
 
             if partials:
                 for partial in partials:
-                    if not self.env.validate_template_name(partial):
+                    if not self.env.validate_file_name(partial):
                         raise ValueError(f"Invalid partial name: {partial}")
                     if not (self.env.partials_dir / partial).exists():
                         raise PartialNotFoundError(f"Partial {partial} not found")
 
-            component_path = f"{template}/{component}"
+            component_path = f"{template_name}/{component_name}"
             if component_path in self.nodes:
                 raise TemplateAlreadyExistsError(f"Template {component_path} already exists")
             if (self.env.templates_dir / component_path).exists():
@@ -320,16 +330,18 @@ class TemplateParser:
                 updated_by=user.name,
             )
 
-            await self._write_component(template, component, content, layout, partials, meta)
-            self.nodes[component_path] = await self._parse_component(template, component)
+            await self._write_component(
+                template_name, component_name, content, layout or "", partials or [], meta
+            )
+            self.nodes[component_path] = await self._parse_component(template_name, component_name)
             return self.nodes[component_path]
         finally:
             self._initialized = True
 
     async def _write_component(
         self,
-        template: str,
-        component: str,
+        template_name: str,
+        component_name: str,
         content: str,
         layout: str,
         partials: List[str],
@@ -337,11 +349,11 @@ class TemplateParser:
     ) -> None:
         """Write a template component."""
         # 템플릿 디렉토리 생성
-        template_dir = self.env.templates_dir / template
+        template_dir = self.env.templates_dir / template_name
         template_dir.mkdir(parents=True, exist_ok=True)
 
         with open(
-            template_dir / f"{component}",
+            template_dir / f"{component_name}",
             "w",
             encoding=self.env.file_encoding,
         ) as f:
@@ -359,11 +371,11 @@ class TemplateParser:
             f.write("\n")
 
     async def _write_component_dependencies(
-        self, template: str, component: str, dependencies: List[str]
+        self, template_name: str, component_name: str, dependencies: List[str]
     ) -> None:
         """Write component dependencies."""
         with open(
-            self.env.templates_dir / template / f"{component}",
+            self.env.templates_dir / template_name / f"{component_name}",
             "w",
             encoding=self.env.file_encoding,
         ) as f:
@@ -373,21 +385,23 @@ class TemplateParser:
                 )
 
     async def _write_component_partials(
-        self, template: str, component: str, partials: List[str]
+        self, template_name: str, component_name: str, partials: List[str]
     ) -> None:
         """Write component partials."""
         with open(
-            self.env.templates_dir / template / f"{component}",
+            self.env.templates_dir / template_name / f"{component_name}",
             "w",
             encoding=self.env.file_encoding,
         ) as f:
             for partial in partials:
                 f.write(f"{{%- include '{partial}' -%}}\n")
 
-    async def _write_component_layout(self, template: str, component: str, layout: str) -> None:
+    async def _write_component_layout(
+        self, template_name: str, component_name: str, layout: str
+    ) -> None:
         """Write component layout."""
         with open(
-            self.env.templates_dir / template / f"{component}",
+            self.env.templates_dir / template_name / f"{component_name}",
             "w",
             encoding=self.env.file_encoding,
         ) as f:
@@ -396,8 +410,8 @@ class TemplateParser:
     async def update_component(
         self,
         user: User,
-        template: str,
-        component: str,
+        template_name: str,
+        component_name: str,
         content: str,
         description: Optional[str] = None,
         layout: Optional[str] = None,
@@ -415,28 +429,28 @@ class TemplateParser:
         self._initialized = False
 
         try:
-            if not self.env.validate_template_name(template):
-                raise ValueError(f"Invalid template name: {template}")
+            if not self.env.validate_file_name(template_name):
+                raise ValueError(f"Invalid template name: {template_name}")
 
-            if not self.env.validate_component_name(component):
-                raise ValueError(f"Invalid component name: {component}")
+            if not self.env.validate_component_name(component_name):
+                raise ValueError(f"Invalid component name: {component_name}")
 
-            if layout and not self.env.validate_template_name(layout):
+            if layout and not self.env.validate_file_name(layout):
                 raise ValueError(f"Invalid layout name: {layout}")
 
             if partials:
                 for partial in partials:
-                    if not self.env.validate_template_name(partial):
+                    if not self.env.validate_file_name(partial):
                         raise ValueError(f"Invalid partial name: {partial}")
 
-            component_path = f"{template}/{component}"
+            component_path = f"{template_name}/{component_name}"
 
             if component_path not in self.nodes:
                 raise TemplateNotFoundError(f"Template {component_path} not found")
             if not (self.env.templates_dir / component_path).exists():
                 raise TemplateNotFoundError(f"Template {component_path} not found")
 
-            _component = await self.get_component(template, component)
+            _component = await self.get_component(template_name, component_name)
             meta = BaseMetaData(
                 description=description,
                 created_at=_component.created_at,
@@ -445,35 +459,37 @@ class TemplateParser:
                 updated_by=user.name,
             )
 
-            await self._write_component(template, component, content, layout, partials, meta)
-            self.nodes[component_path] = await self._parse_component(template, component)
+            await self._write_component(
+                template_name, component_name, content, layout or "", partials or [], meta
+            )
+            self.nodes[component_path] = await self._parse_component(template_name, component_name)
             return self.nodes[component_path]
 
         finally:
             self._initialized = True
 
-    async def delete_component(self, user: User, template: str, component: str) -> None:
+    async def delete_component(self, user: User, template_name: str, component_name: str) -> None:
         """Delete a component.
 
         Args:
-            template: Template name
-            component: Component name
+            template_name: Template name
+            component_name: Component name
         """
         await self._ensure_initialized()
         self._initialized = False
         try:
-            await self._delete_component(user, template, component)
+            await self._delete_component(user, template_name, component_name)
         finally:
             self._initialized = True
 
-    async def _delete_component(self, user: User, template: str, component: str) -> None:
+    async def _delete_component(self, user: User, template_name: str, component_name: str) -> None:
         """Delete a component.
 
         Args:
             template: Template name
             component: Component name
         """
-        component_path = f"{template}/{component}"
+        component_path = f"{template_name}/{component_name}"
         if component_path not in self.nodes:
             raise TemplateNotFoundError(f"Template {component_path} not found")
         if not (self.env.templates_dir / component_path).exists():
@@ -481,13 +497,13 @@ class TemplateParser:
         os.remove(self.env.templates_dir / component_path)
         del self.nodes[component_path]
 
-    async def delete_components_by_template(self, user: User, template: str) -> None:
+    async def delete_components_by_template(self, user: User, template_name: str) -> None:
         """Delete components by template."""
         await self._ensure_initialized()
         self._initialized = False
         try:
-            for component in self.env.get_component_names(template):
-                await self._delete_component(user, template, component)
-            shutil.rmtree(self.env.templates_dir / template)
+            for component_name in self.env.get_component_names(template_name):
+                await self._delete_component(user, template_name, component_name)
+            shutil.rmtree(self.env.templates_dir / template_name)
         finally:
             self._initialized = True

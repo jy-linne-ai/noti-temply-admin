@@ -24,12 +24,22 @@ class PartialRepository:
         self.partial_parser = PartialParser(self.temply_env)
         self.git_env = git_env
 
-    async def create(self, user: User, partial: PartialCreate) -> Partial:
+    async def create(self, user: User, partial_create: PartialCreate) -> Partial:
         """Create Partial"""
-        partial_meta = await self.partial_parser.create(
-            user, partial.name, partial.content, partial.description, partial.dependencies
+        partial = await self.partial_parser.create(
+            user,
+            partial_create.name,
+            partial_create.content,
+            partial_create.description,
+            partial_create.dependencies,
         )
-        return Partial.model_validate(partial_meta)
+        if self.git_env:
+            self.git_env.commit_version(
+                user,
+                f"Create partial {partial.name}",
+                [f"{self.temply_env.build_partial_path(partial.name)}"],
+            )
+        return Partial.model_validate(partial)
 
     async def get(self, partial_name: str) -> Partial:
         """Get Partial"""
@@ -57,13 +67,29 @@ class PartialRepository:
         partial = await self.partial_parser.get_partial(partial_name)
         return [Partial.model_validate(p) for p in partial.parents]
 
-    async def update(self, user: User, partial_name: str, partial: PartialUpdate) -> Partial:
+    async def update(self, user: User, partial_name: str, partial_update: PartialUpdate) -> Partial:
         """Update Partial"""
-        partial_meta = await self.partial_parser.update(
-            user, partial_name, partial.content, partial.description, partial.dependencies
+        partial = await self.partial_parser.update(
+            user,
+            partial_name,
+            partial_update.content,
+            partial_update.description,
+            partial_update.dependencies,
         )
-        return Partial.model_validate(partial_meta)
+        if self.git_env:
+            self.git_env.commit_version(
+                user,
+                f"Update partial {partial_name}",
+                [f"{self.temply_env.build_partial_path(partial_name)}"],
+            )
+        return Partial.model_validate(partial)
 
     async def delete(self, user: User, partial_name: str) -> None:
         """Delete Partial"""
         await self.partial_parser.delete(user, partial_name)
+        if self.git_env:
+            self.git_env.commit_version(
+                user,
+                f"Delete partial {partial_name}",
+                [f"{self.temply_env.build_partial_path(partial_name)}"],
+            )

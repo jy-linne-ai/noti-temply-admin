@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -23,6 +23,7 @@ import {
   Save as SaveIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { Layout } from '@/types/layout';
 import { HtmlEditor } from '@/components/Editor';
@@ -63,23 +64,35 @@ export function LayoutDrawer({
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const api = useApi();
+  const drawerRef = useRef<HTMLDivElement>(null);
 
-  // 초기 데이터 로드
+  // Drawer가 열릴 때 레이아웃 상세 정보 불러오기
   useEffect(() => {
-    if (selectedLayout) {
-      setName(selectedLayout.name);
-      setDescription(selectedLayout.description || '');
-      setSourceContent(selectedLayout.content || '');
-      setPreviewContent(selectedLayout.content || '');
-      setHasChanges(false);
-    } else {
+    if (isOpen && selectedLayout) {
+      const fetchLayoutDetail = async () => {
+        try {
+          setIsLoading(true);
+          const layoutDetail = await api.getLayout(version, selectedLayout.name);
+          setName(layoutDetail.name);
+          setDescription(layoutDetail.description || '');
+          setSourceContent(layoutDetail.content || '');
+          setHasChanges(false);
+        } catch (err) {
+          console.error('Error fetching layout detail:', err);
+          setError('레이아웃 상세 정보를 불러오는데 실패했습니다.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchLayoutDetail();
+    } else if (isOpen && !selectedLayout) {
+      // 새 레이아웃 생성 시 초기화
       setName('');
       setDescription('');
       setSourceContent('');
-      setPreviewContent('');
       setHasChanges(false);
     }
-  }, [selectedLayout]);
+  }, [isOpen, selectedLayout, version]);
 
   // 변경사항 체크
   useEffect(() => {
@@ -104,15 +117,7 @@ export function LayoutDrawer({
     if (hasChanges) {
       setShowUnsavedDialog(true);
     } else {
-      // 포커스를 Drawer 외부로 이동
-      const activeElement = document.activeElement as HTMLElement;
-      if (activeElement) {
-        activeElement.blur();
-      }
-      // 약간의 지연 후 Drawer 닫기
-      requestAnimationFrame(() => {
-        handleDrawerClose();
-      });
+      handleDrawerClose();
     }
   };
 
@@ -136,26 +141,18 @@ export function LayoutDrawer({
         content: sourceContent,
       };
 
+      let updatedLayout;
       if (selectedLayout) {
         delete layoutData.name;
-        const updatedLayout = await api.updateLayout(version, selectedLayout.name, layoutData);
-        await onSave(updatedLayout);
+        updatedLayout = await api.updateLayout(version, selectedLayout.name, layoutData);
       } else {
-        const newLayout = await api.createLayout(version, layoutData);
-        await onSave(newLayout);
+        updatedLayout = await api.createLayout(version, layoutData);
       }
       setHasChanges(false);
       setShowSaveDialog(false);
       
-      // 포커스를 Drawer 외부로 이동
-      const activeElement = document.activeElement as HTMLElement;
-      if (activeElement) {
-        activeElement.blur();
-      }
-      // 약간의 지연 후 Drawer 닫기
-      requestAnimationFrame(() => {
-        onClose();
-      });
+      handleDrawerClose();
+      onSave(updatedLayout);
     } catch (err) {
       console.error('Error saving layout:', err);
       setError('레이아웃 저장에 실패했습니다.');
@@ -170,17 +167,9 @@ export function LayoutDrawer({
 
   const handleDeleteConfirm = () => {
     if (selectedLayout && onDelete) {
-      // 포커스를 Drawer 외부로 이동
-      const activeElement = document.activeElement as HTMLElement;
-      if (activeElement) {
-        activeElement.blur();
-      }
-      // 약간의 지연 후 삭제 실행 및 Drawer 닫기
-      requestAnimationFrame(() => {
-        onDelete(selectedLayout);
-        setShowDeleteDialog(false);
-        onClose();
-      });
+      handleDrawerClose();
+      onDelete(selectedLayout);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -197,6 +186,7 @@ export function LayoutDrawer({
           sx: { width: '80%', maxWidth: '1200px' },
           elevation: 8
         }}
+        ref={drawerRef}
       >
         <Box 
           sx={{ 
@@ -217,6 +207,41 @@ export function LayoutDrawer({
               {selectedLayout ? '레이아웃 수정' : '레이아웃 추가'}
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
+              {selectedLayout && (
+                <Button
+                  variant="outlined"
+                  startIcon={<RefreshIcon />}
+                  onClick={() => {
+                    const fetchLayoutDetail = async () => {
+                      try {
+                        setIsLoading(true);
+                        const layoutDetail = await api.getLayout(version, selectedLayout.name);
+                        setName(layoutDetail.name);
+                        setDescription(layoutDetail.description || '');
+                        setSourceContent(layoutDetail.content || '');
+                        setHasChanges(false);
+                      } catch (err) {
+                        console.error('Error fetching layout detail:', err);
+                        setError('레이아웃 상세 정보를 불러오는데 실패했습니다.');
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    };
+                    fetchLayoutDetail();
+                  }}
+                  disabled={isLoading}
+                >
+                  새로고침
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                disabled={isLoading}
+                startIcon={isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+              >
+                저장
+              </Button>
               {onNew && (
                 <Button
                   variant="outlined"
@@ -234,6 +259,24 @@ export function LayoutDrawer({
                   새로 만들기
                 </Button>
               )}
+              {selectedLayout && onDelete && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={handleDelete}
+                  disabled={isLoading}
+                  startIcon={<DeleteIcon />}
+                >
+                  삭제
+                </Button>
+              )}
+              <Button
+                variant="outlined"
+                onClick={handleClose}
+                disabled={isLoading}
+              >
+                취소
+              </Button>
               <IconButton 
                 onClick={handleClose} 
                 size="small"
@@ -245,7 +288,6 @@ export function LayoutDrawer({
           </Box>
 
           <Stack spacing={3} sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-
             <TextField
               label="이름"
               value={name}
@@ -352,132 +394,109 @@ export function LayoutDrawer({
                 </Box>
               )}
             </Box>
-
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 'auto' }}>
-              <Button
-                variant="outlined"
-                onClick={handleClose}
-                disabled={isLoading}
-              >
-                취소
-              </Button>
-              {selectedLayout && onDelete && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={handleDelete}
-                  disabled={isLoading}
-                  startIcon={<DeleteIcon />}
-                >
-                  삭제
-                </Button>
-              )}
-              <Button
-                variant="contained"
-                onClick={handleSave}
-                disabled={isLoading}
-                startIcon={isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
-              >
-                저장
-              </Button>
-            </Box>
           </Stack>
         </Box>
       </Drawer>
 
-      {/* 저장되지 않은 변경사항 확인 다이얼로그 */}
-      <Dialog
-        open={showUnsavedDialog}
-        onClose={() => setShowUnsavedDialog(false)}
-      >
-        <DialogTitle>저장되지 않은 변경사항</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            저장되지 않은 변경사항이 있습니다. 정말로 닫으시겠습니까?
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowUnsavedDialog(false)}>
-            취소
-          </Button>
-          <Button 
-            onClick={() => {
-              setShowUnsavedDialog(false);
-              onClose();
-            }} 
-            color="error"
-          >
-            닫기
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {showSaveDialog && (
+        <Dialog
+          open={showSaveDialog}
+          onClose={() => setShowSaveDialog(false)}
+          container={document.body}
+        >
+          <DialogTitle>레이아웃 저장</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              {selectedLayout 
+                ? '레이아웃을 저장하시겠습니까?' 
+                : '새로운 레이아웃을 생성하시겠습니까?'}
+            </DialogContentText>
+            {hasChanges && (
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="body2" color="warning.main">
+                  * 변경사항이 있습니다.
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => setShowSaveDialog(false)}
+              disabled={isLoading}
+            >
+              취소
+            </Button>
+            <Button 
+              onClick={handleSaveConfirm}
+              color="primary"
+              disabled={isLoading}
+              startIcon={isLoading ? <CircularProgress size={20} /> : null}
+            >
+              저장
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
-      {/* 저장 확인 다이얼로그 */}
-      <Dialog
-        open={showSaveDialog}
-        onClose={() => setShowSaveDialog(false)}
-      >
-        <DialogTitle>레이아웃 저장</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {selectedLayout 
-              ? '레이아웃을 저장하시겠습니까?' 
-              : '새로운 레이아웃을 생성하시겠습니까?'}
-          </DialogContentText>
-          {hasChanges && (
-            <Box sx={{ mt: 1 }}>
-              <Typography variant="body2" color="warning.main">
-                * 변경사항이 있습니다.
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setShowSaveDialog(false)}
-            disabled={isLoading}
-          >
-            취소
-          </Button>
-          <Button 
-            onClick={handleSaveConfirm}
-            color="primary"
-            disabled={isLoading}
-            startIcon={isLoading ? <CircularProgress size={20} /> : null}
-          >
-            저장
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {showDeleteDialog && (
+        <Dialog
+          open={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          container={document.body}
+        >
+          <DialogTitle>레이아웃 삭제</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              정말로 이 레이아웃을 삭제하시겠습니까?
+              이 작업은 되돌릴 수 없습니다.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isLoading}
+            >
+              취소
+            </Button>
+            <Button 
+              onClick={handleDeleteConfirm}
+              color="error"
+              disabled={isLoading}
+            >
+              삭제
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
-      {/* 삭제 확인 다이얼로그 */}
-      <Dialog
-        open={showDeleteDialog}
-        onClose={() => setShowDeleteDialog(false)}
-      >
-        <DialogTitle>레이아웃 삭제</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            정말로 이 레이아웃을 삭제하시겠습니까?
-            이 작업은 되돌릴 수 없습니다.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setShowDeleteDialog(false)}
-            disabled={isLoading}
-          >
-            취소
-          </Button>
-          <Button 
-            onClick={handleDeleteConfirm}
-            color="error"
-            disabled={isLoading}
-          >
-            삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {showUnsavedDialog && (
+        <Dialog
+          open={showUnsavedDialog}
+          onClose={() => setShowUnsavedDialog(false)}
+          container={document.body}
+        >
+          <DialogTitle>저장되지 않은 변경사항</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              저장되지 않은 변경사항이 있습니다. 정말로 닫으시겠습니까?
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowUnsavedDialog(false)}>
+              취소
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowUnsavedDialog(false);
+                handleDrawerClose();
+              }} 
+              color="error"
+            >
+              닫기
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </>
   );
 }

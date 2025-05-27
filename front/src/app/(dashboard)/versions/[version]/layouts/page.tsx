@@ -64,26 +64,7 @@ export default function LayoutsPage() {
   const fetchLayouts = async () => {
     try {
       const layouts = await api.getLayouts(params.version as string);
-      
-      const layoutsWithComponents = await Promise.all(
-        layouts.map(async (layout) => {
-          try {
-            const components = await api.getLayout(params.version as string, layout.name);
-            return {
-              ...layout,
-              components: components || []
-            };
-          } catch (err) {
-            console.error(`Error fetching components for layout ${layout.name}:`, err);
-            return {
-              ...layout,
-              components: []
-            };
-          }
-        })
-      );
-      
-      setLayouts(layoutsWithComponents);
+      setLayouts(layouts);
     } catch (error) {
       console.error('Error fetching layouts:', error);
       setError('레이아웃을 불러오는데 실패했습니다. 서버가 실행 중인지 확인해주세요.');
@@ -142,7 +123,6 @@ export default function LayoutsPage() {
   const handleSave = async (layout: Layout) => {
     try {
       setIsLoading(true);
-      await api.updateLayout(params.version as string, layout.name, layout);
       await fetchLayouts();
       setSelectedLayout(null);
       setIsDrawerOpen(false);

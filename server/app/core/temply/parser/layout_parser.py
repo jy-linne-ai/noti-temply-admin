@@ -169,7 +169,7 @@ class LayoutParser:
         await self._ensure_initialized()
         self._initialized = False
         try:
-            if not self.env.validate_template_name(layout_name):
+            if not self.env.validate_file_name(layout_name):
                 raise ValueError(f"Invalid layout name: {layout_name}")
 
             if layout_name in self.nodes:

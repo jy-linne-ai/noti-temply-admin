@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@/lib/api';
 import { Version } from '@/types/version';
@@ -46,9 +46,13 @@ export default function VersionSelectPage() {
   const [versionToDelete, setVersionToDelete] = useState<string | null>(null);
   const router = useRouter();
   const api = useApi();
+  const isInitialized = useRef(false);
 
   useEffect(() => {
-    fetchVersions();
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      fetchVersions();
+    }
   }, []);
 
   useEffect(() => {
@@ -78,7 +82,6 @@ export default function VersionSelectPage() {
     try {
       const response = await api.getVersions();
       setVersions(response);
-      setFilteredVersions(response);
     } catch (error) {
       console.error('Failed to fetch versions:', error);
     } finally {

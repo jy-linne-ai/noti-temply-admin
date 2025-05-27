@@ -361,7 +361,7 @@ class PartialParser:
         await self._ensure_initialized()
         self._initialized = False
         try:
-            if not self.env.validate_template_name(partial_name):
+            if not self.env.validate_file_name(partial_name):
                 raise ValueError(f"Invalid partial name: {partial_name}")
 
             if partial_name in self.nodes:
