@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Box,
@@ -12,6 +12,8 @@ import {
   Stack,
   Chip,
   IconButton,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import { 
   Add as AddIcon, 
@@ -19,6 +21,7 @@ import {
   Edit as EditIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
+  Search,
 } from '@mui/icons-material';
 import { useApi } from '@/lib/api';
 import { PartialTemplate } from '@/types/partial';
@@ -38,6 +41,7 @@ export default function PartialsPage() {
   const [selectedPartial, setSelectedPartial] = useState<PartialTemplate | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
     message: '',
@@ -128,6 +132,10 @@ export default function PartialsPage() {
   const handlePartialClick = (partial: PartialTemplate) => {
     setSelectedPartial(partial);
     setIsDrawerOpen(true);
+  };
+
+  const handlePartialChange = (partial: PartialTemplate) => {
+    setSelectedPartial(partial);
   };
 
   const handleSave = async (partial: Partial<PartialTemplate>) => {
@@ -385,6 +393,23 @@ export default function PartialsPage() {
     </Box>
   );
 
+  // 필터링된 파셜 목록
+  const filteredPartials = useMemo(() => {
+    const filterPartial = (partial: PartialWithChildren): boolean => {
+      const matchesSearch = partial.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (partial.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+      
+      if (partial.children) {
+        const hasMatchingChild = partial.children.some(child => filterPartial(child));
+        return matchesSearch || hasMatchingChild;
+      }
+      
+      return matchesSearch;
+    };
+
+    return partials.filter(filterPartial);
+  }, [partials, searchQuery]);
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -411,8 +436,36 @@ export default function PartialsPage() {
         </Box>
       </Box>
 
+      {/* 필터 섹션 */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <TextField
+            placeholder="파셜 이름 또는 설명 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            size="small"
+            sx={{ width: 300 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search />
+                </InputAdornment>
+              ),
+            }}
+          />
+          {searchQuery && (
+            <Button
+              size="small"
+              onClick={() => setSearchQuery('')}
+            >
+              필터 초기화
+            </Button>
+          )}
+        </Stack>
+      </Paper>
+
       <Stack spacing={0.5}>
-        {partials.map(partial => renderPartial(partial))}
+        {filteredPartials.map(partial => renderPartial(partial))}
       </Stack>
 
       <PartialDrawer
@@ -426,6 +479,7 @@ export default function PartialsPage() {
         onSave={handleSave}
         onDelete={handleDelete}
         onNew={handleNewPartial}
+        onPartialChange={handlePartialChange}
       />
 
       <Snackbar

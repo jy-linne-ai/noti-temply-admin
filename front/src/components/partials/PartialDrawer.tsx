@@ -23,6 +23,8 @@ import {
   InputLabel,
   OutlinedInput,
   Autocomplete,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import { 
   Close as CloseIcon,
@@ -75,6 +77,11 @@ export function PartialDrawer({
   const [hasChanges, setHasChanges] = useState(false);
   const [availablePartials, setAvailablePartials] = useState<PartialTemplate[]>([]);
   const [selectedDependency, setSelectedDependency] = useState<string>('');
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
   // selectedPartial이 변경될 때마다 currentPartial 업데이트
   useEffect(() => {
@@ -254,6 +261,9 @@ export function PartialDrawer({
         // 자기 자신을 제외한 파셜만 표시
         const filteredChildren = children.filter(child => child.name !== partialName);
         setChildPartials(filteredChildren);
+
+        // 의존성 목록 다시 로드
+        await loadAvailablePartials();
       }
     } catch (err) {
       console.error('Error loading partial:', err);
@@ -334,26 +344,29 @@ export function PartialDrawer({
   const handleRefresh = async () => {
     try {
       setIsLoading(true);
-      const partialDetail = await api.getPartial(version, selectedPartial?.name || '');
-      
-      // 기본 정보 초기화
-      setName(partialDetail.name);
-      setDescription(partialDetail.description || '');
-      setSourceContent(partialDetail.content || '');
-      setHasChanges(false);
-
-      // 의존성 관련 상태 초기화
-      setSelectedDependency('');
-      setDependencyError('');
-      
-      // 현재 파셜 정보 업데이트
-      setCurrentPartial(partialDetail);
-
-      // 사용 가능한 파셜 목록 다시 로드
+      // 현재 선택된 파셜이 있는 경우, 해당 파셜의 정보를 다시 로드
+      if (selectedPartial) {
+        const updatedPartial = await api.getPartial(version, selectedPartial.name);
+        setCurrentPartial(updatedPartial);
+        setName(updatedPartial.name);
+        setDescription(updatedPartial.description || '');
+        setSourceContent(updatedPartial.content || '');
+        setPreviewContent(updatedPartial.content || '');
+      }
+      // 의존성 목록 다시 로드
       await loadAvailablePartials();
+      setSnackbar({
+        open: true,
+        message: "새로고침이 완료되었습니다.",
+        severity: "success"
+      });
     } catch (err) {
-      console.error('Error fetching partial detail:', err);
-      setError('파셜 상세 정보를 불러오는데 실패했습니다.');
+      console.error('Error refreshing:', err);
+      setSnackbar({
+        open: true,
+        message: "새로고침에 실패했습니다.",
+        severity: "error"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -409,68 +422,40 @@ export function PartialDrawer({
       anchor="right"
       open={isOpen}
       onClose={handleClose}
-      slotProps={{
-        paper: {
-          sx: { 
-            width: {
-              xs: '100%',    // 모바일에서는 전체 너비
-              sm: '90%',     // 태블릿에서는 90%
-              md: '85%',     // 작은 데스크톱에서는 85%
-              lg: '80%',     // 큰 데스크톱에서는 80%
-              xl: '75%'      // 매우 큰 화면에서는 75%
-            },
-            maxWidth: '1600px'  // 최대 너비 제한
-          }
-        }
-      }}
-      keepMounted={false}
-      disablePortal={false}
-      disableEnforceFocus={false}
-      disableAutoFocus={false}
-      sx={{
-        '& .MuiDrawer-paper': {
-          position: 'absolute',
-          height: '100%',
-          transition: 'width 0.3s ease-in-out',
-        },
-        '& .MuiBackdrop-root': {
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        }
+      PaperProps={{
+        sx: { width: '50%', minWidth: 400, maxWidth: 800 }
       }}
     >
       <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          mb: 3,
-          position: 'sticky',
-          top: 0,
-          bgcolor: 'background.paper',
-          zIndex: 1,
-          pb: 2,
-          borderBottom: '1px solid',
-          borderColor: 'divider'
-        }}>
-          <Typography variant="h5" component="h2" id="drawer-title">
-            {selectedPartial ? '파셜 수정' : '파셜 추가'}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h6">
+            {selectedPartial ? '파셜 수정' : '새 파셜 만들기'}
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={isLoading}
+            >
+              새로고침
+            </Button>
             {selectedPartial && (
               <Button
                 variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={handleRefresh}
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleDelete}
                 disabled={isLoading}
               >
-                새로고침
+                삭제
               </Button>
             )}
             <Button
               variant="contained"
+              startIcon={<SaveIcon />}
               onClick={handleSave}
               disabled={isLoading}
-              startIcon={isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
             >
               저장
             </Button>
@@ -496,31 +481,12 @@ export function PartialDrawer({
                 새로 만들기
               </Button>
             )}
-            {selectedPartial && onDelete && (
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={handleDelete}
-                disabled={isLoading}
-                startIcon={<DeleteIcon />}
-              >
-                삭제
-              </Button>
-            )}
             <Button
               variant="outlined"
-              onClick={handleClose}
-              disabled={isLoading}
+              onClick={onClose}
             >
-              취소
+              닫기
             </Button>
-            <IconButton 
-              onClick={handleClose} 
-              size="small"
-              aria-label="닫기"
-            >
-              <CloseIcon />
-            </IconButton>
           </Box>
         </Box>
 
@@ -870,6 +836,19 @@ export function PartialDrawer({
           </Box>
         </Box>
       </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Drawer>
   );
 } 
