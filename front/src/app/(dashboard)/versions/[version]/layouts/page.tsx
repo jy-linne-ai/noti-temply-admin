@@ -6,38 +6,17 @@ import {
   Box,
   Typography,
   Paper,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemButton,
   Alert,
   Snackbar,
-  Divider,
   TextField,
   InputAdornment,
   Stack,
   Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  TableContainer,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  IconButton,
-  DialogContentText,
-  DialogActions,
-  CircularProgress,
 } from '@mui/material';
 import { 
   Search,
-  ViewList as ViewListIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useApi } from '@/lib/api';
 import { Layout } from '@/types/layout';
@@ -46,7 +25,6 @@ import { formatDate } from '@/lib/utils';
 
 export default function LayoutsPage() {
   const params = useParams();
-  const router = useRouter();
   const api = useApi();
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +42,8 @@ export default function LayoutsPage() {
   const fetchLayouts = async () => {
     try {
       const layouts = await api.getLayouts(params.version as string);
-      setLayouts(layouts);
+      const sortedLayouts = layouts.sort((a, b) => a.name.localeCompare(b.name));
+      setLayouts(sortedLayouts);
     } catch (error) {
       console.error('Error fetching layouts:', error);
       setError('레이아웃을 불러오는데 실패했습니다. 서버가 실행 중인지 확인해주세요.');

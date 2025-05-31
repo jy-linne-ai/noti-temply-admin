@@ -316,7 +316,7 @@ async def test_template_with_multiple_partials(
     )
     for partial in partials:
         assert (
-            f"{{%- from 'partials/{partial.name}' import render as partials_{partial.name} with context -%}}"
+            f"{{%- from 'partials/{partial.name}' import render as {temp_env._get_import_name(partial.name)} with context -%}}"
             in load_content
         )
 
@@ -381,11 +381,11 @@ async def test_template_with_nested_partials(
         create_component.template, create_component.component
     )
     assert (
-        f"{{%- from 'partials/{base_partial.name}' import render as partials_{base_partial.name} with context -%}}"
+        f"{{%- from 'partials/{base_partial.name}' import render as {temp_env._get_import_name(base_partial.name)} with context -%}}"
         in load_content
     )
     assert (
-        f"{{%- from 'partials/{dependent_partial.name}' import render as partials_{dependent_partial.name} with context -%}}"
+        f"{{%- from 'partials/{dependent_partial.name}' import render as {temp_env._get_import_name(dependent_partial.name)} with context -%}}"
         in load_content
     )
 
@@ -450,7 +450,7 @@ async def test_template_without_layout(version_info: VersionInfo, temp_env: Temp
     )
     assert "{%- extends" not in load_content
     assert (
-        f"{{%- from 'partials/{create_partial.name}' import render as partials_{create_partial.name} with context -%}}"
+        f"{{%- from 'partials/{create_partial.name}' import render as {temp_env._get_import_name(create_partial.name)} with context -%}}"
         in load_content
     )
     assert create_component.content in load_content
@@ -534,7 +534,7 @@ async def test_template_with_single_partial(
     )
     assert temp_env.format_layout_block(create_component.layout) in load_content
     assert (
-        f"{{%- from 'partials/{create_partial.name}' import render as partials_{create_partial.name} with context -%}}"
+        f"{{%- from 'partials/{create_partial.name}' import render as {temp_env._get_import_name(create_partial.name)} with context -%}}"
         in load_content
     )
     assert create_component.content in load_content
@@ -589,7 +589,7 @@ async def test_template_with_two_partials(
     assert temp_env.format_layout_block(create_component.layout) in load_content
     for partial in partials:
         assert (
-            f"{{%- from 'partials/{partial.name}' import render as partials_{partial.name} with context -%}}"
+            f"{{%- from 'partials/{partial.name}' import render as {temp_env._get_import_name(partial.name)} with context -%}}"
             in load_content
         )
     assert create_component.content in load_content
@@ -753,7 +753,7 @@ async def test_template_update_partials(version_info: VersionInfo, temp_env: Tem
     )
     for partial in new_partials:
         assert (
-            f"{{%- from 'partials/{partial.name}' import render as partials_{partial.name} with context -%}}"
+            f"{{%- from 'partials/{partial.name}' import render as {temp_env._get_import_name(partial.name)} with context -%}}"
             in load_content
         )
 

@@ -25,6 +25,7 @@ import {
   ViewModule as ViewModuleIcon,
   Description as DescriptionIcon,
   Code as CodeIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -50,6 +51,7 @@ export default function DashboardLayout({
     { text: '레이아웃', icon: <ViewModuleIcon />, path: `/versions/${version}/layouts` },
     { text: '파셜', icon: <CodeIcon />, path: `/versions/${version}/partials` },
     { text: '템플릿', icon: <DescriptionIcon />, path: `/versions/${version}/templates` },
+    { text: '프리뷰', icon: <VisibilityIcon />, path: `/versions/${version}/preview` },
   ] : [];
 
   const handleDrawerToggle = () => {

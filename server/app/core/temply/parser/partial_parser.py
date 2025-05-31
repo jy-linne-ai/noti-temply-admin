@@ -14,8 +14,8 @@ from app.core.exceptions import (
     PartialCircularDependencyError,
     PartialNotFoundError,
 )
+from app.core.temply.parser import meta_util
 from app.core.temply.parser.meta_model import BaseMetaData, PartialMetaData
-from app.core.temply.parser.meta_parser import MetaParser
 from app.core.temply.temply_env import TemplyEnv
 from app.models.common_model import User
 
@@ -107,7 +107,7 @@ class PartialParser:
         """
         try:
             content, _, _ = self.env.load_partial_source(partial_name)
-            meta, block = MetaParser.parse(content)
+            meta, block = meta_util.parse(content)
             dependencies, block = await self._extract_dependencies(block)
             block = await self._remove_macro_wrapper(block)
             return PartialMetaData(

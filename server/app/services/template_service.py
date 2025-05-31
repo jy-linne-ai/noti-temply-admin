@@ -1,6 +1,6 @@
 """Template Service"""
 
-from typing import List, Optional
+from typing import Any, List
 
 from app.models.common_model import User
 from app.models.template_model import (
@@ -66,9 +66,21 @@ class TemplateService:
         """
         return await self.template_repository.get_template_names()
 
+    async def get_template_component_counts(self) -> dict[str, int]:
+        """Get template names with component counts"""
+        return await self.template_repository.get_template_component_counts()
+
     async def get_components_by_template(self, template: str) -> List[TemplateComponent]:
         """Get Components by Template"""
         return await self.template_repository.get_components_by_template(template)
+
+    async def get_schema_by_template(self, template: str) -> dict[str, Any]:
+        """Get Schema by Template"""
+        return await self.template_repository.get_schema_by_template(template)
+
+    async def get_variables_by_template(self, template: str) -> dict[str, Any]:
+        """Get Variables by Template"""
+        return await self.template_repository.get_variables_by_template(template)
 
     async def get_component_names_by_template(self, template: str) -> List[str]:
         """Get Component Names by Template"""
@@ -77,3 +89,7 @@ class TemplateService:
     async def delete_components_by_template(self, user: User, template: str) -> None:
         """Delete Components by Template"""
         return await self.template_repository.delete_components_by_template(user, template)
+
+    async def render_component(self, template: str, component: str, data: dict[str, Any]) -> str:
+        """Render Component"""
+        return await self.template_repository.render_component(template, component, data)

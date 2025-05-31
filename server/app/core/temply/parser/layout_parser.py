@@ -8,8 +8,8 @@ import os
 from typing import List, Optional, Set
 
 from app.core.exceptions import LayoutAlreadyExistsError, LayoutNotFoundError
+from app.core.temply.parser import meta_util
 from app.core.temply.parser.meta_model import BaseMetaData, LayoutMetaData
-from app.core.temply.parser.meta_parser import MetaParser
 from app.core.temply.temply_env import TemplyEnv
 from app.models.common_model import User
 
@@ -67,7 +67,7 @@ class LayoutParser:
         """
         try:
             content, _, _ = self.env.load_layout_source(layout_name)
-            meta, block = MetaParser.parse(content)
+            meta, block = meta_util.parse(content)
             return LayoutMetaData(
                 name=layout_name,
                 content=block.strip(),

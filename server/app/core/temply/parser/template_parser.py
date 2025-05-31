@@ -6,7 +6,7 @@ This module provides functionality to parse Jinja2 templates.
 import asyncio
 import os
 import shutil
-from typing import List, Optional, Set
+from typing import Any, List, Optional, Set
 
 from jinja2 import nodes
 
@@ -16,8 +16,8 @@ from app.core.exceptions import (
     TemplateAlreadyExistsError,
     TemplateNotFoundError,
 )
+from app.core.temply.parser import meta_util
 from app.core.temply.parser.meta_model import BaseMetaData, TemplateComponentMetaData
-from app.core.temply.parser.meta_parser import MetaParser
 from app.core.temply.temply_env import TemplyEnv
 from app.models.common_model import User
 
@@ -77,7 +77,7 @@ class TemplateParser:
         """
         try:
             content, _, _ = self.env.load_component_source(template_name, component_name)
-            meta, block = MetaParser.parse(content)
+            meta, block = meta_util.parse(content)
             layout, block = await self._extract_layout(block)
             partials, block = await self._extract_partials(block)
             # block = await self._remove_block_wrapper(block)
@@ -194,6 +194,16 @@ class TemplateParser:
         return [
             component for component in self.nodes.values() if component.template == template_name
         ]
+
+    async def get_schema_by_template(self, template_name: str) -> dict[str, Any]:
+        """Get schema by template."""
+        await self._ensure_initialized()
+        return self.env.load_schema_source(template_name)
+
+    async def get_variables_by_template(self, template_name: str) -> dict[str, Any]:
+        """Get variables by template."""
+        await self._ensure_initialized()
+        return self.env.get_template_schema_generator(template_name)
 
     async def get_component_names_by_template(self, template_name: str) -> List[str]:
         """Get all component names in a template."""
@@ -362,7 +372,7 @@ class TemplateParser:
                 f.write("\n")
                 f.write(self.env.format_layout_block(layout))
             if partials:
-                for partial in self.env.format_partial_imports(partials):
+                for partial in self.env.format_partial_imports(set(partials)):
                     f.write("\n")
                     f.write(partial)
             f.write("\n")
@@ -507,3 +517,9 @@ class TemplateParser:
             shutil.rmtree(self.env.templates_dir / template_name)
         finally:
             self._initialized = True
+
+    async def render_component(
+        self, template_name: str, component_name: str, data: dict[str, Any]
+    ) -> str:
+        """Render Component"""
+        return self.env.render_component(template_name, component_name, data)

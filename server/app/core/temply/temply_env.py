@@ -1,5 +1,6 @@
 """Temply 환경"""
 
+import json
 import re
 from enum import Enum
 from pathlib import Path
@@ -126,6 +127,15 @@ class TemplyEnv:
         _env.filters.update(filters)
         return _env
 
+    def load_schema_source(self, template_name: str) -> dict[str, Any]:
+        """스키마 소스 조회"""
+        with open(
+            self.templates_dir / template_name / self.schema_filename,
+            "r",
+            encoding=self.file_encoding,
+        ) as f:
+            return json.loads(f.read())
+
     def load_source(self, component_path: str) -> tuple[str, str | None, Callable[[], bool] | None]:
         """템플릿 컴포넌트 소스 조회"""
         if not self.env.loader:
@@ -223,32 +233,34 @@ class TemplyEnv:
 
     def get_template_schema_generator(self, template: str) -> Dict[str, Any]:
         """템플릿 컴포넌트 스키마 생성기 조회"""
-        return generate_object(self.get_template_schema(template))
+        return generate_object(self.load_schema_source(template))
 
-    def _render_component(
-        self, template: str, component_name: str, schema_data: Dict[str, Any]
+    def render_component(
+        self, template_name: str, component_name: str, schema_data: Dict[str, Any]
     ) -> str:
         """템플릿 컴포넌트 렌더링"""
-        return self.get_component_template(template, component_name).render(schema_data)
+        return self.get_component_template(template_name, component_name).render(schema_data)
 
-    def render_template(self, template: str, schema_data: Dict[str, Any]) -> Dict[str, str]:
+    def render_template(self, template_name: str, schema_data: Dict[str, Any]) -> Dict[str, str]:
         """템플릿 컴포넌트 렌더링"""
         result = dict()
-        for component_name in self.get_component_names(template):
-            result[component_name] = self._render_component(template, component_name, schema_data)
+        for component_name in self.get_component_names(template_name):
+            result[component_name] = self.render_component(
+                template_name, component_name, schema_data
+            )
         return result
 
-    def _build_template_path(self, template: str) -> str:
+    def _build_template_path(self, template_name: str) -> str:
         """템플릿 경로 조회"""
-        return self.templates_dir_name + "/" + template
+        return self.templates_dir_name + "/" + template_name
 
-    def build_component_path(self, template: str, component: str) -> str:
+    def build_component_path(self, template_name: str, component_name: str) -> str:
         """템플릿 컴포넌트 경로 조회"""
-        return self._build_template_path(template) + "/" + component
+        return self._build_template_path(template_name) + "/" + component_name
 
-    def _build_component_schema_path(self, template: str) -> str:
+    def _build_component_schema_path(self, template_name: str) -> str:
         """템플릿 컴포넌트 스키마 경로 조회"""
-        return self._build_template_path(template) + "/" + self.schema_filename
+        return self._build_template_path(template_name) + "/" + self.schema_filename
 
     def get_layout_names(self) -> list[str]:
         """레이아웃 목록 조회"""
@@ -259,9 +271,9 @@ class TemplyEnv:
             items.append(item.name)
         return items
 
-    def build_layout_path(self, name: str) -> str:
+    def build_layout_path(self, layout_name: str) -> str:
         """레이아웃 경로 조회"""
-        return self.layouts_dir_name + "/" + name
+        return self.layouts_dir_name + "/" + layout_name
 
     def get_partial_names(self) -> list[str]:
         """파트 목록 조회"""
@@ -272,20 +284,20 @@ class TemplyEnv:
             items.append(item.name)
         return items
 
-    def build_partial_path(self, name: str) -> str:
+    def build_partial_path(self, partial_name: str) -> str:
         """파트 경로 조회"""
-        return self.partials_dir_name + "/" + name
+        return self.partials_dir_name + "/" + partial_name
 
-    def _get_import_name(self, template: str) -> str:
+    def _get_import_name(self, name: str) -> str:
         """Get template name."""
-        return template.replace("/", "_").replace("-", "_")
+        return name.replace("/", "_").replace("-", "_")
 
-    def format_partial_imports(self, partials: Set[str]) -> list[str]:
+    def format_partial_imports(self, partial_names: Set[str]) -> list[str]:
         """Make partials in Jinja format."""
         result = []
-        for partial in partials:
+        for partial_name in partial_names:
             result.append(
-                f"{{%- from '{self.partials_dir_name}/{partial}' import render as {self._get_import_name(partial)} with context -%}}"
+                f"{{%- from '{self.partials_dir_name}/{partial_name}' import render as {self._get_import_name(partial_name)} with context -%}}"
             )
         return result
 
@@ -293,7 +305,8 @@ class TemplyEnv:
         """Make meta in Jinja format."""
         lines = ["{#-"]
 
-        lines.append(f"description: {meta.description or ''}")
+        description = meta.description.replace("\n", "\\n") if meta.description else ""
+        lines.append(f"description: {description}")
         lines.append(
             # pylint: disable=line-too-long
             f"created_at: {meta.created_at.astimezone(JST).strftime('%Y-%m-%d %H:%M:%S') if meta.created_at else ''}"
@@ -307,17 +320,17 @@ class TemplyEnv:
         lines.append("-#}")
         return "\n".join(lines)
 
-    def format_layout_block(self, layout: str) -> str:
+    def format_layout_block(self, layout_name: str) -> str:
         """Make layout in Jinja format."""
-        return f"{{%- extends '{self.layouts_dir_name}/{layout}' -%}}"
+        return f"{{%- extends '{self.layouts_dir_name}/{layout_name}' -%}}"
 
-    def format_layout_content(self, content: str) -> str:
+    def format_layout_content(self, layout_content: str) -> str:
         """Make layout body in Jinja format."""
-        return f"{{%- block content -%}}\n{content}\n{{%- endblock -%}}"
+        return f"{{%- block content -%}}\n{layout_content}\n{{%- endblock -%}}"
 
-    def format_partial_content(self, content: str) -> str:
+    def format_partial_content(self, partial_content: str) -> str:
         """Make partial body in Jinja format."""
-        return f"{{%- macro render(locals = {{}}) -%}}\n{content}\n{{%- endmacro -%}}"
+        return f"{{%- macro render(locals = {{}}) -%}}\n{partial_content}\n{{%- endmacro -%}}"
 
     # def get_template_component_body_jinja_format(self, content: str) -> str:
     #     """Make template body in Jinja format."""
@@ -354,7 +367,7 @@ class TemplyEnv:
 
         return True
 
-    def validate_component_name(self, component: str) -> bool:
+    def validate_component_name(self, component_name: str) -> bool:
         """템플릿 컴포넌트 이름이 유효한지 검사합니다.
 
         Args:
@@ -364,10 +377,10 @@ class TemplyEnv:
         Returns:
             bool: 템플릿 이름이 유효하면 True, 아니면 False
         """
-        if not component:
+        if not component_name:
             return False
-        if not self.validate_file_name(component):
+        if not self.validate_file_name(component_name):
             return False
-        if component not in TemplateComponents.__members__:
+        if component_name not in TemplateComponents.__members__:
             return False
         return True

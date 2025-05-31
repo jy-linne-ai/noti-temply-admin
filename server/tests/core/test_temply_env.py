@@ -202,7 +202,7 @@ async def test_parse_content(data_env, template):
     for enum in TemplateComponents:
         try:
             # pylint: disable=protected-access
-            print(data_env._render_component(template, enum.value, schema_data))
+            print(data_env.render_component(template, enum.value, schema_data))
             success_count += 1
         except TemplateNotFound:
             pass
@@ -253,7 +253,7 @@ def test_validate_template_name(temp_env: TemplyEnv, file_name: str, expected: b
         file_name: 테스트할 파일명
         expected: 예상되는 결과
     """
-    assert temp_env.validate_template_name(file_name) == expected
+    assert temp_env.validate_file_name(file_name) == expected
 
 
 @pytest.mark.asyncio
@@ -345,23 +345,23 @@ async def test_temply_env_get_template_names(temp_env: TemplyEnv):
 async def test_temply_env_check_file_name(temp_env: TemplyEnv):
     """파일명 검사 테스트"""
     # 유효한 파일명
-    assert temp_env.validate_template_name("valid_name")
-    assert temp_env.validate_template_name("valid-name")
-    assert temp_env.validate_template_name("valid_name_123")
+    assert temp_env.validate_file_name("valid_name")
+    assert temp_env.validate_file_name("valid-name")
+    assert temp_env.validate_file_name("valid_name_123")
 
     # 유효하지 않은 파일명
-    assert not temp_env.validate_template_name("")  # 빈 문자열
-    assert not temp_env.validate_template_name(" ")  # 공백만 있는 문자열
-    assert not temp_env.validate_template_name(".hidden")  # 숨김 파일
-    assert not temp_env.validate_template_name("invalid/name")  # 슬래시 포함
-    assert not temp_env.validate_template_name("invalid:name")  # 콜론 포함
-    assert not temp_env.validate_template_name("invalid*name")  # 별표 포함
-    assert not temp_env.validate_template_name("invalid?name")  # 물음표 포함
-    assert not temp_env.validate_template_name('invalid"name')  # 따옴표 포함
-    assert not temp_env.validate_template_name("invalid<name")  # 꺾쇠 포함
-    assert not temp_env.validate_template_name("invalid>name")  # 꺾쇠 포함
-    assert not temp_env.validate_template_name("invalid|name")  # 파이프 포함
-    assert not temp_env.validate_template_name("invalid name")  # 공백 포함
+    assert not temp_env.validate_file_name("")  # 빈 문자열
+    assert not temp_env.validate_file_name(" ")  # 공백만 있는 문자열
+    assert not temp_env.validate_file_name(".hidden")  # 숨김 파일
+    assert not temp_env.validate_file_name("invalid/name")  # 슬래시 포함
+    assert not temp_env.validate_file_name("invalid:name")  # 콜론 포함
+    assert not temp_env.validate_file_name("invalid*name")  # 별표 포함
+    assert not temp_env.validate_file_name("invalid?name")  # 물음표 포함
+    assert not temp_env.validate_file_name('invalid"name')  # 따옴표 포함
+    assert not temp_env.validate_file_name("invalid<name")  # 꺾쇠 포함
+    assert not temp_env.validate_file_name("invalid>name")  # 꺾쇠 포함
+    assert not temp_env.validate_file_name("invalid|name")  # 파이프 포함
+    assert not temp_env.validate_file_name("invalid name")  # 공백 포함
 
 
 @pytest.mark.asyncio
@@ -388,7 +388,7 @@ async def test_temply_env_make_jinja_format(temp_env: TemplyEnv):
     partials = {"test_partial"}
     partials_format = temp_env.format_partial_imports(partials)
     assert (
-        "{%- from 'partials/test_partial' import render as partials_test_partial with context -%}"
+        "{%- from 'partials/test_partial' import render as test_partial with context -%}"
         in partials_format
     )
 

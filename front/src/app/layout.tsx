@@ -1,10 +1,5 @@
-'use client';
-
 import { Inter } from 'next/font/google';
-import { Toaster } from 'react-hot-toast';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
-import { ThemeProvider } from '@mui/material/styles';
-import { createAppTheme } from '@/theme';
+import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -16,12 +11,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
-            <AppRouterCacheProvider>
-          <ThemeProvider theme={createAppTheme(false)}>
-                {children}
-              <Toaster />
-          </ThemeProvider>
-            </AppRouterCacheProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

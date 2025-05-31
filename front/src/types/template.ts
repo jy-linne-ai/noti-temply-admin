@@ -14,7 +14,7 @@ export interface Layout extends BaseEntity {
   template: string;  // 레이아웃 HTML 템플릿
 }
 
-export interface Template {
+export interface TemplateComponent {
   description: string | null;
   created_at: string | null;
   created_by: string | null;
@@ -25,7 +25,6 @@ export interface Template {
   layout: string | null;
   partials: string[];
   content: string;
-  dependencies?: string[];  // 의존성 목록
   isMapped?: boolean;
 }
 

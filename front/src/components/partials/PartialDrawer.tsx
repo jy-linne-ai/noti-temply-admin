@@ -423,7 +423,8 @@ export function PartialDrawer({
       open={isOpen}
       onClose={handleClose}
       PaperProps={{
-        sx: { width: '50%', minWidth: 400, maxWidth: 800 }
+        sx: { width: '80%', maxWidth: '1200px' },
+        elevation: 8
       }}
     >
       <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>

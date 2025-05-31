@@ -1,11 +1,12 @@
 import axios from 'axios';
 import { Version } from '@/types/version';
 import { Layout } from '@/types/layout';
-import { Template } from '@/types/template';
+import { TemplateComponent } from '@/types/template';
 import { PartialTemplate } from '@/types/partial';
+import { Component, useMemo } from 'react';
 
 // API URL
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 // API 엔드포인트 (private)
 const API_ENDPOINTS = {
@@ -21,11 +22,14 @@ const API_ENDPOINTS = {
     list: (version: string) => `/versions/${version}/templates`,
     names: (version: string) => `/versions/${version}/template-names`,
     get: (version: string, template: string) => `/versions/${version}/templates/${template}`,
-    components: {
-      list: (version: string, template: string) => `/versions/${version}/templates/${template}/components`,
-      get: (version: string, template: string, component: string) => 
-        `/versions/${version}/templates/${template}/components/${component}`,
-    }
+    components: (version: string, template: string) => 
+      `/versions/${version}/templates/${template}/components`,
+    component: (version: string, template: string, component: string) => 
+      `/versions/${version}/templates/${template}/components/${component}`,
+    schema: (version: string, template: string) => 
+      `/versions/${version}/templates/${template}/schema`,
+    variables: (version: string, template: string) => 
+      `/versions/${version}/templates/${template}/variables`,
   },
   partials: {
     list: (version: string) => `/versions/${version}/partials`,
@@ -110,36 +114,6 @@ const handleResponse = <T>(response: { data: T | { data: T } }): T => {
   return response.data as T;
 };
 
-// API 응답 캐시를 위한 Map
-const responseCache = new Map<string, {
-  data: any;
-  timestamp: number;
-}>();
-
-// 캐시 유효 시간 (5분)
-const CACHE_DURATION = 5 * 60 * 1000;
-
-// 캐시된 API 호출 함수
-const cachedApiCall = async <T>(
-  key: string,
-  apiCall: () => Promise<T>
-): Promise<T> => {
-  const cached = responseCache.get(key);
-  const now = Date.now();
-
-  if (cached && now - cached.timestamp < CACHE_DURATION) {
-    console.log('Using cached response for:', key);
-    return cached.data;
-  }
-
-  const response = await apiCall();
-  responseCache.set(key, {
-    data: response,
-    timestamp: now
-  });
-  return response;
-};
-
 export interface ApiClient {
   // 버전 관련 API
   getVersions: () => Promise<Version[]>;
@@ -165,22 +139,22 @@ export interface ApiClient {
   getPartialChildren: (version: string, partial: string) => Promise<PartialTemplate[]>;
 
   // 템플릿 관련 API
-  getTemplates: (version: string) => Promise<Template[]>;
-  getTemplate: (version: string, template: string) => Promise<Template>;
-  createTemplate: (version: string, data: Partial<Template>) => Promise<Template>;
-  updateTemplate: (version: string, template: string, data: Partial<Template>) => Promise<Template>;
-  deleteTemplate: (version: string, template: string) => Promise<void>;
-  getTemplateNames: (version: string) => Promise<string[]>;
+  getTemplateComponentCounts: (version: string) => Promise<Record<string, number>>;
+  getTemplateComponents: (version: string, template: string) => Promise<TemplateComponent[]>;
+  getTemplateSchema: (version: string, template: string) => Promise<Record<string, any>>;
+  getTemplateVariables: (version: string, template: string) => Promise<Record<string, any>>;
 
   // 템플릿 컴포넌트 관련 API
-  getAllTemplateComponents: () => Promise<string[]>;
-  getTemplateComponents: (version: string, template: string) => Promise<Template[]>;
-  getTemplateComponent: (version: string, template: string, component: string) => Promise<Template>;
-  updateTemplateComponent: (version: string, template: string, component: string, data: Partial<Template>) => Promise<Template>;
+  getDefaultComponentNames: () => Promise<string[]>;
+  // getTemplateComponent: (version: string, template: string, component: string, skipCache?: boolean) => Promise<Component>;
+  // updateTemplateComponent: (version: string, template: string, component: string, data: Partial<Component>) => Promise<Component>;
+
+  // New methods
+  renderComponent: (version: string, template: string, component: string, data: Record<string, any>) => Promise<any>;
 }
 
 export function useApi(): ApiClient {
-  return {
+  return useMemo(() => ({
     // 버전 관련 API
     getVersions: () => api.get(API_ENDPOINTS.versions.list).then(handleResponse),
     getVersion: (version: string) => api.get(API_ENDPOINTS.versions.get(version)).then(handleResponse),
@@ -217,31 +191,33 @@ export function useApi(): ApiClient {
       api.get(API_ENDPOINTS.partials.children(version, partial)).then(handleResponse),
 
     // 템플릿 관련 API
-    getTemplates: (version: string) => api.get(API_ENDPOINTS.templates.list(version)).then(handleResponse),
-    getTemplate: (version: string, template: string) => 
-      api.get(API_ENDPOINTS.templates.get(version, template)).then(handleResponse),
-    createTemplate: (version: string, data: Partial<Template>) => 
-      api.post(API_ENDPOINTS.templates.list(version), data).then(handleResponse),
-    updateTemplate: (version: string, template: string, data: Partial<Template>) => 
-      api.put(API_ENDPOINTS.templates.get(version, template), data).then(handleResponse),
-    deleteTemplate: (version: string, template: string) => 
-      api.delete(API_ENDPOINTS.templates.get(version, template)),
-    getTemplateNames: (version: string) => 
+    getTemplateComponentCounts: (version: string) => 
       api.get(API_ENDPOINTS.templates.names(version)).then(handleResponse),
+    getTemplateComponents: (version: string, template: string) => 
+      api.get(API_ENDPOINTS.templates.components(version, template)).then(handleResponse),
+    getTemplateSchema: (version: string, template: string) => 
+      api.get(API_ENDPOINTS.templates.schema(version, template)).then(handleResponse),
+    getTemplateVariables: (version: string, template: string) => 
+      api.get(API_ENDPOINTS.templates.variables(version, template)).then(handleResponse),
 
     // 템플릿 컴포넌트 관련 API
-    getAllTemplateComponents: () => api.get('/template-components').then(handleResponse),
-    getTemplateComponents: (version: string, template: string) => 
-      cachedApiCall(
-        `template-components-${version}-${template}`,
-        () => api.get(API_ENDPOINTS.templates.components.list(version, template)).then(handleResponse)
-      ),
-    getTemplateComponent: (version: string, template: string, component: string) => 
-      cachedApiCall(
-        `template-component-${version}-${template}-${component}`,
-        () => api.get(API_ENDPOINTS.templates.components.get(version, template, component)).then(handleResponse)
-      ),
-    updateTemplateComponent: (version: string, template: string, component: string, data: Partial<Template>) => 
-      api.put(API_ENDPOINTS.templates.components.get(version, template, component), data).then(handleResponse),
-  };
+    getDefaultComponentNames: () => api.get('/template-components').then(handleResponse),
+    // getTemplateComponent: (version: string, template: string, component: string, skipCache = false) => 
+    //   cachedApiCall(
+    //     `template-component-${version}-${template}-${component}`,
+    //     () => api.get(API_ENDPOINTS.templates.components.get(version, template, component)).then(handleResponse),
+    //     skipCache
+    //   ),
+    // updateTemplateComponent: (version: string, template: string, component: string, data: Partial<Component>) => 
+    //   api.put(API_ENDPOINTS.templates.components.get(version, template, component), data).then(handleResponse),
+
+    // New methods
+    renderComponent: async (version: string, template: string, component: string, data: Record<string, any>) => {
+      const response = await api.post(
+        `${API_ENDPOINTS.templates.components(version, template)}/${component}/render`,
+        data
+      );
+      return response.data;
+    },
+  }), []); // 빈 의존성 배열로 한 번만 생성
 } 

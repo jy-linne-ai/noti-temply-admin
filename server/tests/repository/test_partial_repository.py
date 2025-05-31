@@ -229,12 +229,13 @@ async def test_partial_repository_with_dependencies(
     assert create_partial.name == test3_partial.name
     assert create_partial.content == test3_partial.content
     load_content, _, _ = temp_env.load_partial_source(test3_partial.name)
-    print(load_content)
     assert (
-        "{%- from 'partials/test' import render as partials_test with context -%}" in load_content
+        f"{{%- from 'partials/{test_partial.name}' import render as {temp_env._get_import_name(test_partial.name)} with context -%}}"
+        in load_content
     )
     assert (
-        "{%- from 'partials/test2' import render as partials_test2 with context -%}" in load_content
+        f"{{%- from 'partials/{test2_partial.name}' import render as {temp_env._get_import_name(test2_partial.name)} with context -%}}"
+        in load_content
     )
 
     assert test_partial.name in create_partial.dependencies

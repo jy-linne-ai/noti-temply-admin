@@ -95,8 +95,10 @@ export default function PartialsPage() {
         }
       };
 
-      for (let i = 0; i < rootPartials.length; i += BATCH_SIZE) {
-        const batch = rootPartials.slice(i, i + BATCH_SIZE);
+      const sortedRootPartials = rootPartials.sort((a, b) => a.name.localeCompare(b.name));
+
+      for (let i = 0; i < sortedRootPartials.length; i += BATCH_SIZE) {
+        const batch = sortedRootPartials.slice(i, i + BATCH_SIZE);
         
         // 현재 배치의 파셜들을 재귀적으로 로드
         const batchResults = await Promise.all(
