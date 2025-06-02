@@ -134,18 +134,18 @@ export default function LayoutsPage() {
         </Typography>
         <Stack direction="row" spacing={2}>
           <Button
-            variant="outlined"
-            onClick={handleRefresh}
-            startIcon={<RefreshIcon />}
-          >
-            새로고침
-          </Button>
-          <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleAdd}
           >
             레이아웃 추가
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleRefresh}
+            startIcon={<RefreshIcon />}
+          >
+            새로고침
           </Button>
         </Stack>
       </Box>

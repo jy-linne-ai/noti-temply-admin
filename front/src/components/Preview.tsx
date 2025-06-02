@@ -9,56 +9,7 @@ interface PreviewProps {
   componentName?: string;
 }
 
-const PREVIEW_STYLES = {
-  layout: {
-    body: {
-      margin: '0',
-      padding: '0',
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '14px',
-      lineHeight: '1.5',
-      color: '#333',
-    },
-    container: {
-      maxWidth: '100%',
-      margin: '0 auto',
-      padding: '20px',
-    },
-  },
-  template: {
-    body: {
-      margin: '0',
-      padding: '0',
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '14px',
-      lineHeight: '1.5',
-      color: '#333',
-    },
-    container: {
-      maxWidth: '100%',
-      margin: '0 auto',
-      padding: '20px',
-    },
-  },
-  partial: {
-    body: {
-      margin: '0',
-      padding: '0',
-      fontFamily: 'Arial, sans-serif',
-      fontSize: '14px',
-      lineHeight: '1.5',
-      color: '#333',
-    },
-    container: {
-      maxWidth: '100%',
-      margin: '0 auto',
-      padding: '20px',
-    },
-  },
-};
-
 export function Preview({ content, title, type = 'template', onRender, componentName }: PreviewProps) {
-  const styles = PREVIEW_STYLES[type];
   const [renderedContent, setRenderedContent] = useState<string>(content);
   const [isLoading, setIsLoading] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -92,67 +43,7 @@ export function Preview({ content, title, type = 'template', onRender, component
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (doc) {
         doc.open();
-        doc.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <style>
-                html, body {
-                  margin: 0;
-                  padding: 0;
-                  min-height: 100%;
-                  width: 100%;
-                }
-                body {
-                  font-family: Arial, sans-serif;
-                  font-size: 14px;
-                  line-height: 1.5;
-                  color: #333;
-                }
-                .container {
-                  padding: 20px;
-                  box-sizing: border-box;
-                }
-                pre {
-                  white-space: pre-wrap;
-                  word-break: break-word;
-                  font-family: monospace;
-                  font-size: 0.875rem;
-                  margin: 0;
-                }
-              </style>
-              <script>
-                function updateHeight() {
-                  const height = document.documentElement.scrollHeight;
-                  window.parent.postMessage({ type: 'resize', height }, '*');
-                }
-                
-                // 초기 로드 시 높이 업데이트
-                window.addEventListener('load', updateHeight);
-                
-                // DOM 변경 감지
-                const observer = new MutationObserver(updateHeight);
-                observer.observe(document.body, {
-                  childList: true,
-                  subtree: true,
-                  characterData: true
-                });
-                
-                // 이미지 로드 완료 시 높이 업데이트
-                document.addEventListener('load', function(e) {
-                  if (e.target.tagName === 'IMG') {
-                    updateHeight();
-                  }
-                }, true);
-              </script>
-            </head>
-            <body>
-              <div class="container">
-                ${renderedContent}
-              </div>
-            </body>
-          </html>
-        `);
+        doc.write(renderedContent);
         doc.close();
       }
     }

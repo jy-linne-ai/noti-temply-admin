@@ -337,29 +337,52 @@ export default function PartialsPage() {
               </IconButton>
             )}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  fontWeight: 500,
-                  color: level > 0 ? 'text.secondary' : 'text.primary'
-                }}
-              >
+              <Typography variant="h6" sx={{ fontWeight: 500 }}>
                 {partial.name}
               </Typography>
-              {partial.description && (
-                <Typography variant="body2" color="text.secondary">
-                  - {partial.description}
-                </Typography>
-              )}
-              {partial.children && partial.children.length > 0 && (
-                <Chip
-                  label={`${partial.children.length}개의 하위 파셜`}
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  sx={{ ml: 'auto' }}
-                />
-              )}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {partial.children && partial.children.length > 0 && (
+                  <Chip
+                    label={`하위 ${partial.children.length}`}
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    sx={{ 
+                      height: 24,
+                      '& .MuiChip-label': {
+                        px: 1,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                )}
+                {partial.dependencies && partial.dependencies.length > 0 && (
+                  <Chip
+                    label={`의존 ${partial.dependencies.length}`}
+                    size="small"
+                    color="warning"
+                    variant="outlined"
+                    sx={{ 
+                      height: 24,
+                      '& .MuiChip-label': {
+                        px: 1,
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  />
+                )}
+                {partial.description && (
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ 
+                      fontWeight: 'normal'
+                    }}
+                  >
+                    - {partial.description}
+                  </Typography>
+                )}
+              </Box>
             </Box>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -372,19 +395,6 @@ export default function PartialsPage() {
               </Box>
             </Box>
           </Box>
-          {partial.dependencies && partial.dependencies.length > 0 && (
-            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 1 }}>
-              {partial.dependencies.map((dep) => (
-                <Chip
-                  key={dep}
-                  label={dep}
-                  size="small"
-                  color="warning"
-                  variant="outlined"
-                />
-              ))}
-            </Box>
-          )}
         </Box>
       </Paper>
       {partial.isExpanded && partial.children && partial.children.length > 0 && (
@@ -420,20 +430,20 @@ export default function PartialsPage() {
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={fetchPartials}
-            disabled={isLoading}
-          >
-            새로고침
-          </Button>
-          <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleNewPartial}
             disabled={isLoading}
           >
             새로 만들기
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={fetchPartials}
+            disabled={isLoading}
+          >
+            새로고침
           </Button>
         </Box>
       </Box>

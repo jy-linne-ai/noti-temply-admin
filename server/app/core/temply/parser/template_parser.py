@@ -80,7 +80,6 @@ class TemplateParser:
             meta, block = meta_util.parse(content)
             layout, block = await self._extract_layout(block)
             partials, block = await self._extract_partials(block)
-            # block = await self._remove_block_wrapper(block)
             return TemplateComponentMetaData(
                 template=template_name,
                 component=component_name,
@@ -161,11 +160,6 @@ class TemplateParser:
                     last_import_line = node.lineno
 
         return partials, "\n".join(content.splitlines()[last_import_line:])
-
-    # async def _remove_block_wrapper(self, content: str) -> str:
-    #     """Remove block wrapper from template content."""
-    #     lines = content.splitlines()
-    #     return "\n".join(lines[1:-1]) if len(lines) > 2 else ""
 
     async def get_templates(self) -> List[TemplateComponentMetaData]:
         """Get all templates."""
@@ -376,46 +370,8 @@ class TemplateParser:
                     f.write("\n")
                     f.write(partial)
             f.write("\n")
-            # f.write(self.env.make_template_body_jinja_format(content))
             f.write(content)
             f.write("\n")
-
-    async def _write_component_dependencies(
-        self, template_name: str, component_name: str, dependencies: List[str]
-    ) -> None:
-        """Write component dependencies."""
-        with open(
-            self.env.templates_dir / template_name / f"{component_name}",
-            "w",
-            encoding=self.env.file_encoding,
-        ) as f:
-            for dependency in dependencies:
-                f.write(
-                    f"{{%- from '{dependency}' import render as {dependency} with context -%}}\n"
-                )
-
-    async def _write_component_partials(
-        self, template_name: str, component_name: str, partials: List[str]
-    ) -> None:
-        """Write component partials."""
-        with open(
-            self.env.templates_dir / template_name / f"{component_name}",
-            "w",
-            encoding=self.env.file_encoding,
-        ) as f:
-            for partial in partials:
-                f.write(f"{{%- include '{partial}' -%}}\n")
-
-    async def _write_component_layout(
-        self, template_name: str, component_name: str, layout: str
-    ) -> None:
-        """Write component layout."""
-        with open(
-            self.env.templates_dir / template_name / f"{component_name}",
-            "w",
-            encoding=self.env.file_encoding,
-        ) as f:
-            f.write(f"{{%- extends '{layout}' -%}}\n")
 
     async def update_component(
         self,

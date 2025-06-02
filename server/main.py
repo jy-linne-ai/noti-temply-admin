@@ -38,8 +38,8 @@ def create_app() -> FastAPI:
 
     router.include_router(
         template_default_component_name_api.router,
-        prefix="/template-components",
-        tags=["template-components"],
+        prefix="/template-available-components",
+        tags=["template-available-components"],
     )
     router.include_router(version_api.router, prefix="/versions", tags=["versions"])
     router.include_router(

@@ -145,7 +145,7 @@ export interface ApiClient {
   getTemplateVariables: (version: string, template: string) => Promise<Record<string, any>>;
 
   // 템플릿 컴포넌트 관련 API
-  getDefaultComponentNames: () => Promise<string[]>;
+  getTemplateAvailableComponents: () => Promise<string[]>;
   // getTemplateComponent: (version: string, template: string, component: string, skipCache?: boolean) => Promise<Component>;
   // updateTemplateComponent: (version: string, template: string, component: string, data: Partial<Component>) => Promise<Component>;
 
@@ -201,7 +201,7 @@ export function useApi(): ApiClient {
       api.get(API_ENDPOINTS.templates.variables(version, template)).then(handleResponse),
 
     // 템플릿 컴포넌트 관련 API
-    getDefaultComponentNames: () => api.get('/template-components').then(handleResponse),
+    getTemplateAvailableComponents: () => api.get('/template-available-components').then(handleResponse),
     // getTemplateComponent: (version: string, template: string, component: string, skipCache = false) => 
     //   cachedApiCall(
     //     `template-component-${version}-${template}-${component}`,

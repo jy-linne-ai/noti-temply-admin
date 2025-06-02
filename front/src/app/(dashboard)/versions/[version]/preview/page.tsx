@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Box,
@@ -23,12 +23,52 @@ import {
   Tab,
   Drawer,
   IconButton,
+  Tooltip,
 } from '@mui/material';
-import { Search as SearchIcon, Visibility as VisibilityIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Search as SearchIcon, Visibility as VisibilityIcon, Close as CloseIcon, Add as AddIcon, Refresh as RefreshIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon } from '@mui/icons-material';
 import { useApi } from '@/lib/api';
 import { TemplateComponent } from '@/types/template';
 import Editor from '@monaco-editor/react';
 import { Preview } from '@/components/Preview';
+import Ajv, { JSONSchemaType } from 'ajv';
+import addFormats from 'ajv-formats';
+
+// Ajv 인스턴스 생성 및 포맷 추가
+const ajv = new Ajv({ allErrors: true });
+addFormats(ajv);
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`template-tabpanel-${index}`}
+      aria-labelledby={`template-tab-${index}`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ p: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
+
+function a11yProps(index: number) {
+  return {
+    id: `template-tab-${index}`,
+    'aria-controls': `template-tabpanel-${index}`,
+  };
+}
 
 export default function PreviewPage() {
   const params = useParams();
@@ -50,20 +90,8 @@ export default function PreviewPage() {
   const [drawerRenderedContent, setDrawerRenderedContent] = useState<string>('');
   const [drawerActiveTab, setDrawerActiveTab] = useState<string>('');
   const [isVariablesValid, setIsVariablesValid] = useState(true);
-
-  // 템플릿 목록 로드
-  const loadTemplates = async () => {
-    try {
-      setIsLoading(true);
-      const templateNames = await api.getTemplateComponentCounts(params.version as string);
-      setTemplates(templateNames);
-    } catch (err) {
-      console.error('Error loading templates:', err);
-      setError('템플릿 목록을 불러오는데 실패했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [mappedComponents, setMappedComponents] = useState<Record<string, boolean>>({});
 
   // 컴포넌트 로드
   const loadComponents = async (templateName: string) => {
@@ -73,7 +101,7 @@ export default function PreviewPage() {
       const [schema, variables, defaultComponentNames] = await Promise.all([
         api.getTemplateSchema(params.version as string, templateName),
         api.getTemplateVariables(params.version as string, templateName),
-        api.getDefaultComponentNames()
+        api.getTemplateAvailableComponents()
       ]);
       setSchema(schema);
       setVariables(variables);
@@ -89,6 +117,13 @@ export default function PreviewPage() {
       
       setComponents(sortedComponents);
       
+      // 매핑된 컴포넌트 확인
+      const mapped: Record<string, boolean> = {};
+      defaultComponentNames.forEach(comp => {
+        mapped[comp] = sortedComponents.some(c => c.component === comp);
+      });
+      setMappedComponents(mapped);
+      
       // 각 컴포넌트의 탭 상태 초기화
       const initialTabs: Record<string, number> = {};
       sortedComponents.forEach(component => {
@@ -103,9 +138,44 @@ export default function PreviewPage() {
     }
   };
 
+  // 기본값으로 초기화
+  const handleResetVariables = async () => {
+    if (!selectedTemplate) return;
+    
+    try {
+      setIsLoading(true);
+      const defaultVariables = await api.getTemplateVariables(params.version as string, selectedTemplate);
+      setVariables(defaultVariables);
+      setError(null);
+    } catch (err) {
+      console.error('Error resetting variables:', err);
+      setError('기본값을 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 초기 데이터 로드
   useEffect(() => {
-    loadTemplates();
+    const loadInitialData = async () => {
+      try {
+        setIsLoading(true);
+        // 기본 컴포넌트 이름 목록 로드
+        const defaultComponents = await api.getTemplateAvailableComponents();
+        setDefaultComponentNames(defaultComponents);
+        
+        // 템플릿 목록 로드
+        const templateNames = await api.getTemplateComponentCounts(params.version as string);
+        setTemplates(templateNames);
+      } catch (err) {
+        console.error('Error loading initial data:', err);
+        setError('초기 데이터를 불러오는데 실패했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialData();
   }, [params.version]);
 
   // 템플릿 선택 시 컴포넌트 로드
@@ -155,9 +225,28 @@ export default function PreviewPage() {
     try {
       const parsedValue = JSON.parse(value);
       setVariables(parsedValue);
-      setIsVariablesValid(true);
+      
+      // JSON Schema 검증
+      if (schema && Object.keys(schema).length > 0) {
+        const validate = ajv.compile(schema as JSONSchemaType<typeof parsedValue>);
+        const isValid = validate(parsedValue);
+        setIsVariablesValid(isValid);
+        
+        if (!isValid) {
+          const errors = validate.errors?.map((err: any) => {
+            const path = err.instancePath || 'root';
+            return `${path}: ${err.message}`;
+          }).join('\n');
+          setError(`변수 정보가 스키마와 일치하지 않습니다:\n${errors}`);
+        } else {
+          setError(null);
+        }
+      } else {
+        setIsVariablesValid(true);
+      }
     } catch (err) {
       setIsVariablesValid(false);
+      setError('JSON 형식이 올바르지 않습니다.');
     }
   };
 
@@ -207,6 +296,7 @@ export default function PreviewPage() {
       // 선택된 컴포넌트가 있으면 해당 컴포넌트의 탭을 활성화
       if (selectedComponent) {
         setDrawerActiveTab(selectedComponent.component);
+        setSelectedTab(defaultComponentNames.findIndex(name => name === selectedComponent.component));
         renderComponent(selectedTemplate, selectedComponent.component)
           .then(content => {
             if (content) {
@@ -221,22 +311,25 @@ export default function PreviewPage() {
             setError('컴포넌트 렌더링에 실패했습니다.');
           });
       } else if (components.length > 0) {
-        // 선택된 컴포넌트가 없으면 첫 번째 컴포넌트의 탭을 활성화
-        const firstComponent = components[0];
-        setDrawerActiveTab(firstComponent.component);
-        renderComponent(selectedTemplate, firstComponent.component)
-          .then(content => {
-            if (content) {
-              const formattedContent = firstComponent.component.startsWith('TEXT_')
-                ? content.replace(/\n/g, '<br>')
-                : content;
-              setDrawerRenderedContent(formattedContent);
-            }
-          })
-          .catch(err => {
-            console.error('Error rendering component for drawer:', err);
-            setError('컴포넌트 렌더링에 실패했습니다.');
-          });
+        // 선택된 컴포넌트가 없으면 첫 번째 매핑된 컴포넌트의 탭을 활성화
+        const firstMappedComponent = components.find(comp => mappedComponents[comp.component]);
+        if (firstMappedComponent) {
+          setDrawerActiveTab(firstMappedComponent.component);
+          setSelectedTab(defaultComponentNames.findIndex(name => name === firstMappedComponent.component));
+          renderComponent(selectedTemplate, firstMappedComponent.component)
+            .then(content => {
+              if (content) {
+                const formattedContent = firstMappedComponent.component.startsWith('TEXT_')
+                  ? content.replace(/\n/g, '<br>')
+                  : content;
+                setDrawerRenderedContent(formattedContent);
+              }
+            })
+            .catch(err => {
+              console.error('Error rendering component for drawer:', err);
+              setError('컴포넌트 렌더링에 실패했습니다.');
+            });
+        }
       }
     }
   }, [previewDrawerOpen, selectedTemplate, selectedComponent, components, variables]);
@@ -267,6 +360,107 @@ export default function PreviewPage() {
     }
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setSelectedTab(newValue);
+  };
+
+  // 컴포넌트 프리뷰 패널
+  const ComponentPreviewPanel = ({ componentName, index }: { componentName: string; index: number }) => {
+    const [content, setContent] = useState<string>('');
+
+    useEffect(() => {
+      const loadContent = async () => {
+        if (mappedComponents[componentName]) {
+          const renderedContent = await renderComponent(selectedTemplate, componentName);
+          setContent(renderedContent || '');
+        }
+      };
+      loadContent();
+    }, [componentName, mappedComponents[componentName], selectedTemplate]);
+
+    return (
+      <TabPanel value={selectedTab} index={index}>
+        {mappedComponents[componentName] ? (
+          <Box sx={{ p: 2 }}>
+            {/* <Typography variant="h6" gutterBottom>
+              {componentName} 프리뷰
+            </Typography> */}
+            <Paper 
+              sx={{ 
+                p: 2, 
+                bgcolor: 'background.paper',
+                maxHeight: '60vh',
+                overflow: 'auto'
+              }}
+            >
+              {componentName.startsWith('TEXT_') ? (
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {content}
+                </Typography>
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: content }} />
+              )}
+            </Paper>
+          </Box>
+        ) : (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography color="text.secondary">
+              이 컴포넌트는 아직 매핑되지 않았습니다.
+            </Typography>
+          </Box>
+        )}
+      </TabPanel>
+    );
+  };
+
+  // 스키마에서 기본값 생성 함수
+  const generateDefaultValues = (schema: any): any => {
+    if (!schema) return {};
+
+    // 배열 타입인 경우
+    if (schema.type === 'array') {
+      if (schema.default) return schema.default;
+      if (schema.items) {
+        return [generateDefaultValues(schema.items)];
+      }
+      return [];
+    }
+
+    // 객체 타입인 경우
+    if (schema.type === 'object') {
+      const result: Record<string, any> = {};
+      if (schema.properties) {
+        Object.entries(schema.properties).forEach(([key, prop]: [string, any]) => {
+          // required 필드이거나 default가 있는 경우에만 처리
+          if (schema.required?.includes(key) || prop.default !== undefined) {
+            result[key] = generateDefaultValues(prop);
+          }
+        });
+      }
+      return result;
+    }
+
+    // 기본 타입인 경우
+    if (schema.default !== undefined) {
+      return schema.default;
+    }
+
+    // 타입에 따른 기본값
+    switch (schema.type) {
+      case 'string':
+        return '';
+      case 'number':
+      case 'integer':
+        return 0;
+      case 'boolean':
+        return false;
+      case 'null':
+        return null;
+      default:
+        return null;
+    }
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
@@ -276,6 +470,32 @@ export default function PreviewPage() {
       {/* 템플릿 선택 */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Stack spacing={2}>
+
+          {/* 카테고리별 빠른 선택 */}
+          <Box>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              카테고리별 빠른 선택
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {Object.entries(groupedTemplates).map(([category, templates]) => (
+                <Chip
+                  key={category}
+                  label={`${category} (${templates.length})`}
+                  onClick={() => {
+                    if (categoryFilter === category) {
+                      setCategoryFilter(''); // 같은 카테고리 클릭시 필터 해제
+                    } else {
+                      setCategoryFilter(category); // 다른 카테고리 선택시 필터 적용
+                    }
+                  }}
+                  color={categoryFilter === category ? 'primary' : 'default'}
+                  variant={categoryFilter === category ? 'filled' : 'outlined'}
+                  sx={{ m: 0.5 }}
+                />
+              ))}
+            </Stack>
+          </Box>
+          
           <FormControl fullWidth>
             <Autocomplete
               options={filteredTemplates}
@@ -310,30 +530,6 @@ export default function PreviewPage() {
             />
           </FormControl>
 
-          {/* 카테고리별 빠른 선택 */}
-          <Box>
-            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-              카테고리별 빠른 선택
-            </Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {Object.entries(groupedTemplates).map(([category, templates]) => (
-                <Chip
-                  key={category}
-                  label={`${category} (${templates.length})`}
-                  onClick={() => {
-                    if (categoryFilter === category) {
-                      setCategoryFilter(''); // 같은 카테고리 클릭시 필터 해제
-                    } else {
-                      setCategoryFilter(category); // 다른 카테고리 선택시 필터 적용
-                    }
-                  }}
-                  color={categoryFilter === category ? 'primary' : 'default'}
-                  variant={categoryFilter === category ? 'filled' : 'outlined'}
-                  sx={{ m: 0.5 }}
-                />
-              ))}
-            </Stack>
-          </Box>
         </Stack>
       </Paper>
 
@@ -371,19 +567,31 @@ export default function PreviewPage() {
                         wordWrap: 'on',
                         automaticLayout: true,
                       }}
-                      onValidate={(markers) => {
-                        setIsVariablesValid(markers.length === 0);
-                      }}
                     />
                   </Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
                     <Typography 
                       variant="caption" 
-                      color={isVariablesValid ? 'text.secondary' : 'error'}
-                      sx={{ alignSelf: 'center' }}
+                      color={isVariablesValid ? 'success.main' : 'error.main'}
+                      sx={{ 
+                        alignSelf: 'center',
+                        whiteSpace: 'pre-wrap',
+                        fontFamily: 'monospace'
+                      }}
                     >
-                      {isVariablesValid ? 'JSON 형식이 올바릅니다' : 'JSON 형식이 올바르지 않습니다'}
+                      {isVariablesValid 
+                        ? '✓ 변수 정보가 스키마와 일치합니다' 
+                        : '✗ 변수 정보가 스키마와 일치하지 않습니다'}
                     </Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={handleResetVariables}
+                      disabled={!selectedTemplate || isLoading}
+                      startIcon={isLoading ? <CircularProgress size={16} /> : <RefreshIcon />}
+                    >
+                      기본값으로 초기화
+                    </Button>
                   </Box>
                 </Box>
               )}
@@ -424,42 +632,40 @@ export default function PreviewPage() {
                     mb: 2,
                     flexWrap: 'wrap'
                   }}>
-                    <Button
-                      size="small"
-                      onClick={() => {
-                        setSelectedComponent(component);
-                        setPreviewDrawerOpen(true);
-                      }}
-                      startIcon={<VisibilityIcon />}
-                      sx={{ 
-                        color: 'primary.main',
-                        transition: 'all 0.2s',
-                        flexShrink: 0,
-                        borderRadius: 2,
-                        px: 2,
-                        py: 0.5,
-                        textTransform: 'none',
-                        fontWeight: 500,
-                        fontSize: '0.875rem',
-                        boxShadow: 'none',
-                        '&:hover': {
-                          bgcolor: 'action.hover',
-                          boxShadow: 1,
-                        }
-                      }}
-                    >
-                      프리뷰
-                    </Button>
                     <Typography 
                       variant="h6" 
                       sx={{ 
-                        flex: '1 1 auto',
                         display: 'flex',
                         alignItems: 'center',
                         gap: 1
                       }}
                     >
                       {component.component}
+                      <Button
+                        size="small"
+                        onClick={() => {
+                          setSelectedComponent(component);
+                          setPreviewDrawerOpen(true);
+                        }}
+                        startIcon={<VisibilityIcon />}
+                        sx={{ 
+                          color: 'primary.main',
+                          transition: 'all 0.2s',
+                          borderRadius: 2,
+                          px: 2,
+                          py: 0.5,
+                          textTransform: 'none',
+                          fontWeight: 500,
+                          fontSize: '0.875rem',
+                          boxShadow: 'none',
+                          '&:hover': {
+                            bgcolor: 'action.hover',
+                            boxShadow: 1,
+                          }
+                        }}
+                      >
+                        프리뷰
+                      </Button>
                       {component.description && (
                         <Typography 
                           variant="caption" 
@@ -486,7 +692,7 @@ export default function PreviewPage() {
                     >
                       {component.layout && (
                         <Chip
-                          label={`레이아웃: ${component.layout}`}
+                          label={component.layout}
                           size="small"
                           color="primary"
                           variant="outlined"
@@ -502,7 +708,7 @@ export default function PreviewPage() {
                       {component.partials && component.partials.map((partial) => (
                         <Chip
                           key={partial}
-                          label={`파셜: ${partial}`}
+                          label={partial}
                           size="small"
                           variant="outlined"
                           sx={{ 
@@ -558,142 +764,119 @@ export default function PreviewPage() {
         open={previewDrawerOpen}
         onClose={() => setPreviewDrawerOpen(false)}
         PaperProps={{
-          sx: {
-            width: '80%',
-            maxWidth: '1200px',
-            height: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-          },
+          sx: { width: '80%', maxWidth: '1200px' }
         }}
       >
-        <Box sx={{ 
-          p: 2, 
-          height: '100%', 
-          display: 'flex', 
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            mb: 2,
-            flexShrink: 0
-          }}>
-            <Typography variant="h5" sx={{ fontWeight: 500 }}>
-              {selectedTemplate}
+        <Box sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6">
+              {selectedTemplate} 프리뷰
             </Typography>
             <IconButton onClick={() => setPreviewDrawerOpen(false)}>
               <CloseIcon />
             </IconButton>
           </Box>
 
-          {/* 컴포넌트 탭 */}
-          <Tabs
-            value={drawerActiveTab || false}
-            onChange={(_, newValue) => handleDrawerTabChange(newValue)}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{ 
+          <Box sx={{ width: '100%' }}>
+            <Box sx={{ 
               borderBottom: 1, 
               borderColor: 'divider',
-              mb: 2,
-              flexShrink: 0
-            }}
-          >
-            {components.map((component) => (
-              <Tab
-                key={component.component}
-                label={component.component}
-                value={component.component}
+              bgcolor: 'background.paper',
+              position: 'sticky',
+              top: 0,
+              zIndex: 2
+            }}>
+              <Tabs 
+                value={selectedTab} 
+                onChange={handleTabChange}
+                variant="scrollable"
+                scrollButtons="auto"
+                sx={{
+                  '& .MuiTabs-flexContainer': {
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    p: 1
+                  },
+                  '& .MuiTab-root': {
+                    minHeight: 48,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    mx: 0.5,
+                    my: 0.5,
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                      borderColor: 'primary.main',
+                    },
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      borderColor: 'primary.main',
+                      '& .MuiSvgIcon-root': {
+                        color: 'primary.contrastText'
+                      }
+                    }
+                  }
+                }}
+              >
+                {defaultComponentNames.map((componentName, index) => (
+                  <Tab
+                    key={componentName}
+                    label={
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        minWidth: 200,
+                        justifyContent: 'space-between'
+                      }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          {componentName}
+                        </Typography>
+                        <Tooltip title={mappedComponents[componentName] ? "매핑됨" : "미매핑"}>
+                          {mappedComponents[componentName] ? (
+                            <CheckCircleIcon 
+                              color="success" 
+                              fontSize="small"
+                              sx={{ 
+                                flexShrink: 0,
+                                color: selectedTab === index ? 'inherit' : 'success.main'
+                              }} 
+                            />
+                          ) : (
+                            <CancelIcon 
+                              color="error" 
+                              fontSize="small"
+                              sx={{ 
+                                flexShrink: 0,
+                                color: selectedTab === index ? 'inherit' : 'error.main'
+                              }} 
+                            />
+                          )}
+                        </Tooltip>
+                      </Box>
+                    }
+                    {...a11yProps(index)}
+                  />
+                ))}
+              </Tabs>
+            </Box>
+            {defaultComponentNames.map((componentName, index) => (
+              <ComponentPreviewPanel 
+                key={componentName}
+                componentName={componentName}
+                index={index}
               />
             ))}
-          </Tabs>
-
-          <Box sx={{ 
-            flex: 1, 
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            bgcolor: 'background.paper',
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-          }}>
-            {drawerActiveTab && (
-              <iframe
-                srcDoc={`
-                  <!DOCTYPE html>
-                  <html>
-                    <head>
-                      <style>
-                        html, body {
-                          margin: 0;
-                          padding: 0;
-                          min-height: 100%;
-                          width: 100%;
-                        }
-                        body {
-                          font-family: Arial, sans-serif;
-                          font-size: 14px;
-                          line-height: 1.5;
-                          color: #333;
-                        }
-                        .container {
-                          padding: 20px;
-                          box-sizing: border-box;
-                        }
-                        pre {
-                          white-space: pre-wrap;
-                          word-break: break-word;
-                          font-family: monospace;
-                          font-size: 0.875rem;
-                          margin: 0;
-                        }
-                      </style>
-                      <script>
-                        function updateHeight() {
-                          const height = document.documentElement.scrollHeight;
-                          window.parent.postMessage({ type: 'resize', height }, '*');
-                        }
-                        
-                        window.addEventListener('load', updateHeight);
-                        
-                        // MutationObserver 설정을 DOMContentLoaded 이벤트 이후로 이동
-                        document.addEventListener('DOMContentLoaded', function() {
-                          const observer = new MutationObserver(updateHeight);
-                          observer.observe(document.documentElement, {
-                            childList: true,
-                            subtree: true,
-                            characterData: true
-                          });
-                        });
-                        
-                        // 이미지 로드 이벤트 리스너
-                        document.addEventListener('load', function(e) {
-                          if (e.target.tagName === 'IMG') {
-                            updateHeight();
-                          }
-                        }, true);
-                      </script>
-                    </head>
-                    <body>
-                      <div class="container">
-                        ${drawerRenderedContent}
-                      </div>
-                    </body>
-                  </html>
-                `}
-                style={{
-                  width: '100%',
-                  border: 'none',
-                  overflow: 'hidden',
-                  flex: 1,
-                }}
-                title="Preview"
-              />
-            )}
           </Box>
         </Box>
       </Drawer>

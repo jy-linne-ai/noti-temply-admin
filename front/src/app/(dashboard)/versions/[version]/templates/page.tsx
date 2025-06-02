@@ -40,10 +40,14 @@ export default function TemplatesPage() {
   // 필터링 상태
   const [searchQuery, setSearchQuery] = useState('');
   
+  const [selectedComponent, setSelectedComponent] = useState<TemplateComponent | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [components, setComponents] = useState<TemplateComponent[]>([]);
 
   const loadDefaultComponentNames = useCallback(async () => {
     try {
-      const defaultComponentNames = await api.getDefaultComponentNames();
+      const defaultComponentNames = await api.getTemplateAvailableComponents();
       if (!Array.isArray(defaultComponentNames) || defaultComponentNames.length === 0) {
         throw new Error('Failed to load default component names');
       }
@@ -193,6 +197,29 @@ export default function TemplatesPage() {
       });
   }, [templates, searchQuery]);
 
+  // 컴포넌트 클릭 핸들러
+  const handleComponentClick = (component: TemplateComponent) => {
+    setSelectedComponent(component);
+    setIsDrawerOpen(true);
+  };
+
+  // 템플릿 컴포넌트 로드
+  useEffect(() => {
+    const loadComponents = async () => {
+      if (!selectedComponent?.template) return;
+      
+      try {
+        const response = await api.getTemplateComponents(params.version as string, selectedComponent.template);
+        setComponents(response);
+      } catch (err) {
+        console.error('Error loading components:', err);
+        setError('컴포넌트 목록을 불러오는데 실패했습니다.');
+      }
+    };
+
+    loadComponents();
+  }, [selectedComponent?.template, params.version, api]);
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -289,6 +316,7 @@ export default function TemplatesPage() {
                       return (
                         <Paper
                           key={component.component}
+                          onClick={() => handleComponentClick(component)}
                           sx={{
                             p: 1.5,
                             cursor: 'pointer',
@@ -416,6 +444,23 @@ export default function TemplatesPage() {
           );
         })}
       </Stack>
+
+      {/* Template Drawer */}
+      <TemplateDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setSelectedComponent(null);
+        }}
+        selectedTemplateName={selectedComponent?.template || ''}
+        selectedComponentName={selectedComponent?.component || ''}
+        selectedComponent={selectedComponent}
+        drawerComponents={components}
+        onComponentClick={(template, component) => {
+          setSelectedComponent(component);
+        }}
+        version={params.version as string}
+      />
 
       <Snackbar
         open={!!error}

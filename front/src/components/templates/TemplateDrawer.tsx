@@ -138,7 +138,7 @@ export function TemplateDrawer({
       try {
         // 병렬로 API 요청 실행
         const [componentNames, components] = await Promise.all([
-          api.getAllTemplateComponents(),
+          api.getTemplateAvailableComponents(),
           api.getTemplateComponents(version, selectedTemplateName)
         ]);
         
@@ -220,60 +220,28 @@ export function TemplateDrawer({
         return;
       }
 
-      try {
-        // API에서 컴포넌트 데이터 로드 시도
-        const component = await api.getTemplateComponent(version, selectedTemplateName, componentName);
-        
-        if (component) {
-          // 매핑된 데이터가 있으면 수정 모드
-          onComponentClick(selectedTemplateName, component);
-        } else {
-          // 매핑된 데이터가 없으면 신규 모드
-          const emptyComponent: Template = {
-            name: componentName,
-            template: selectedTemplateName,
-            component: componentName,
-            content: '',
-            description: null,
-            partials: [],
-            created_at: null,
-            created_by: null,
-            updated_at: null,
-            updated_by: null,
-            layout: null,
-            isMapped: false
-          };
-          onComponentClick(selectedTemplateName, emptyComponent);
-        }
-      } catch (err: any) {
-        // 404 에러면 신규 모드로
-        if (err.response?.status === 404) {
-          const emptyComponent: Template = {
-            name: componentName,
-            template: selectedTemplateName,
-            component: componentName,
-            content: '',
-            description: null,
-            partials: [],
-            created_at: null,
-            created_by: null,
-            updated_at: null,
-            updated_by: null,
-            layout: null,
-            isMapped: false
-          };
-          onComponentClick(selectedTemplateName, emptyComponent);
-        } else {
-          throw err; // 다른 에러는 상위로 전파
-        }
-      }
+      // 매핑되지 않은 컴포넌트인 경우 빈 컴포넌트 객체 생성
+      const emptyComponent = {
+        template: selectedTemplateName,
+        component: componentName,
+        content: '',
+        description: null,
+        partials: [],
+        created_at: null,
+        created_by: null,
+        updated_at: null,
+        updated_by: null,
+        layout: null,
+        isMapped: false
+      };
+      onComponentClick(selectedTemplateName, emptyComponent);
     } catch (err) {
       console.error('Error loading component:', err);
       setError('컴포넌트를 불러오는데 실패했습니다.');
     } finally {
       setIsLoading(false);
     }
-  }, [allComponents, mappedComponents, onComponentClick, selectedTemplateName, version, api]);
+  }, [allComponents, mappedComponents, onComponentClick, selectedTemplateName]);
 
   // Drawer가 닫힐 때 캐시 유지 (다음 열 때 재사용)
   useEffect(() => {
@@ -337,7 +305,7 @@ export function TemplateDrawer({
   const handleSave = async () => {
     try {
       setIsLoading(true);
-      const updatedComponent = await api.updateTemplateComponent(
+      const updatedComponent = await api.renderComponent(
         version,
         selectedTemplateName,
         selectedComponentName,
@@ -359,10 +327,10 @@ export function TemplateDrawer({
   const handleDelete = async () => {
     try {
       setIsLoading(true);
-      await api.deleteTemplate(version, selectedTemplateName);
+      await api.renderComponent(version, selectedTemplateName, selectedComponentName, {});
       setSnackbar({
         open: true,
-        message: '템플릿이 삭제되었습니다.',
+        message: '컴포넌트가 삭제되었습니다.',
         severity: 'success'
       });
       if (onTemplateChange) {
@@ -370,10 +338,10 @@ export function TemplateDrawer({
       }
       onClose();
     } catch (err) {
-      console.error('Error deleting template:', err);
+      console.error('Error deleting component:', err);
       setSnackbar({
         open: true,
-        message: '템플릿 삭제에 실패했습니다.',
+        message: '컴포넌트 삭제에 실패했습니다.',
         severity: 'error'
       });
     } finally {
@@ -386,11 +354,11 @@ export function TemplateDrawer({
     try {
       setIsLoading(true);
       const [componentNames, components] = await Promise.all([
-        api.getAllTemplateComponents(),
+        api.getTemplateAvailableComponents(),
         api.getTemplateComponents(version, selectedTemplateName)
       ]);
       
-      const mapped = components.filter(comp => comp.content && comp.content.trim() !== '');
+      const mapped = components.filter((comp: any) => comp.content && comp.content.trim() !== '');
       
       setAllComponents(componentNames);
       setMappedComponents(mapped);
@@ -694,10 +662,10 @@ export function TemplateDrawer({
         open={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
       >
-        <DialogTitle>템플릿 삭제</DialogTitle>
+        <DialogTitle>컴포넌트 삭제</DialogTitle>
         <DialogContent>
           <Typography>
-            정말로 이 템플릿을 삭제하시겠습니까?
+            정말로 이 컴포넌트를 삭제하시겠습니까?
             이 작업은 되돌릴 수 없습니다.
           </Typography>
         </DialogContent>
