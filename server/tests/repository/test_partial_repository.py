@@ -2,15 +2,15 @@
 
 import pytest
 
-from app.core.exceptions import (
+from temply_app.core.exceptions import (
     PartialAlreadyExistsError,
     PartialCircularDependencyError,
     PartialNotFoundError,
 )
-from app.core.temply.temply_env import TemplyEnv
-from app.models.common_model import User, VersionInfo
-from app.models.partial_model import PartialCreate, PartialUpdate
-from app.repositories.partial_repository import PartialRepository
+from temply_app.core.temply.temply_env import TemplyEnv
+from temply_app.models.common_model import User, VersionInfo
+from temply_app.models.partial_model import PartialCreate, PartialUpdate
+from temply_app.repositories.partial_repository import PartialRepository
 
 
 @pytest.mark.asyncio

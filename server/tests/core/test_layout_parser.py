@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.core.temply.parser.layout_parser import LayoutParser
+from temply_app.core.temply.parser.layout_parser import LayoutParser
 
 
 @pytest.mark.asyncio

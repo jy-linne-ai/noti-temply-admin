@@ -4,12 +4,12 @@ import asyncio
 
 import pytest
 
-from app.core.exceptions import PartialCircularDependencyError, PartialNotFoundError
-from app.core.temply.temply_env import TemplyEnv
-from app.models.common_model import User, VersionInfo
-from app.models.partial_model import PartialCreate, PartialUpdate
-from app.repositories.partial_repository import PartialRepository
-from app.services.partial_service import PartialService
+from temply_app.core.exceptions import PartialCircularDependencyError, PartialNotFoundError
+from temply_app.core.temply.temply_env import TemplyEnv
+from temply_app.models.common_model import User, VersionInfo
+from temply_app.models.partial_model import PartialCreate, PartialUpdate
+from temply_app.repositories.partial_repository import PartialRepository
+from temply_app.services.partial_service import PartialService
 
 
 def get_temp_env_service(version_info: VersionInfo, temp_env: TemplyEnv):

@@ -2,15 +2,15 @@
 
 import pytest
 
-from app.core.exceptions import (
+from temply_app.core.exceptions import (
     LayoutNotFoundError,
     PartialNotFoundError,
     TemplateAlreadyExistsError,
     TemplateNotFoundError,
 )
-from app.core.temply.parser.template_parser import TemplateParser
-from app.core.temply.temply_env import TemplateComponents, TemplyEnv
-from app.models.common_model import User
+from temply_app.core.temply.parser.template_parser import TemplateParser
+from temply_app.core.temply.temply_env import TemplateComponents, TemplyEnv
+from temply_app.models.common_model import User
 
 
 @pytest.mark.asyncio

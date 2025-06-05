@@ -2,23 +2,23 @@
 
 import pytest
 
-from app.core.exceptions import (
+from temply_app.core.exceptions import (
     LayoutNotFoundError,
     PartialNotFoundError,
     TemplateAlreadyExistsError,
     TemplateNotFoundError,
 )
-from app.core.temply.temply_env import TemplateComponents, TemplyEnv
-from app.models.common_model import User, VersionInfo
-from app.models.layout_model import LayoutCreate
-from app.models.partial_model import PartialCreate
-from app.models.template_model import TemplateComponentCreate, TemplateComponentUpdate
-from app.repositories.layout_repository import LayoutRepository
-from app.repositories.partial_repository import PartialRepository
-from app.repositories.template_repository import TemplateRepository
-from app.services.layout_service import LayoutService
-from app.services.partial_service import PartialService
-from app.services.template_service import TemplateService
+from temply_app.core.temply.temply_env import TemplateComponents, TemplyEnv
+from temply_app.models.common_model import User, VersionInfo
+from temply_app.models.layout_model import LayoutCreate
+from temply_app.models.partial_model import PartialCreate
+from temply_app.models.template_model import TemplateComponentCreate, TemplateComponentUpdate
+from temply_app.repositories.layout_repository import LayoutRepository
+from temply_app.repositories.partial_repository import PartialRepository
+from temply_app.repositories.template_repository import TemplateRepository
+from temply_app.services.layout_service import LayoutService
+from temply_app.services.partial_service import PartialService
+from temply_app.services.template_service import TemplateService
 
 
 @pytest.mark.asyncio

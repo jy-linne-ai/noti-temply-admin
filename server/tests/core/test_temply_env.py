@@ -13,11 +13,16 @@ from jinja2schema.model import Dictionary  # type: ignore
 from jsonschema import validate
 from jsonschema.validators import RefResolver
 
-from app.core.temply.parser.meta_model import BaseMetaData
-from app.core.temply.schema.mergers import merge
-from app.core.temply.schema.parser import get_mode_title
-from app.core.temply.schema.utils import generate_object
-from app.core.temply.temply_env import TemplateComponents, TemplyEnv, infer_from_ast, to_json_schema
+from temply_app.core.temply.parser.meta_model import BaseMetaData
+from temply_app.core.temply.schema.mergers import merge
+from temply_app.core.temply.schema.parser import get_mode_title
+from temply_app.core.temply.schema.utils import generate_object
+from temply_app.core.temply.temply_env import (
+    TemplateComponents,
+    TemplyEnv,
+    infer_from_ast,
+    to_json_schema,
+)
 
 
 def get_base_path() -> Path:

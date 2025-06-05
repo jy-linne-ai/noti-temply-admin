@@ -4,14 +4,14 @@ from datetime import datetime
 
 import pytest
 
-from app.core.exceptions import (
+from temply_app.core.exceptions import (
     PartialAlreadyExistsError,
     PartialCircularDependencyError,
     PartialNotFoundError,
 )
-from app.core.temply.parser.meta_model import JST, BaseMetaData, PartialMetaData
-from app.core.temply.parser.partial_parser import PartialParser
-from app.models.common_model import User
+from temply_app.core.temply.parser.meta_model import JST, BaseMetaData, PartialMetaData
+from temply_app.core.temply.parser.partial_parser import PartialParser
+from temply_app.models.common_model import User
 
 
 @pytest.mark.asyncio

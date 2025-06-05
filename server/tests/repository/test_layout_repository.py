@@ -2,11 +2,11 @@
 
 import pytest
 
-from app.core.exceptions import LayoutAlreadyExistsError, LayoutNotFoundError
-from app.core.temply.temply_env import TemplyEnv
-from app.models.common_model import User, VersionInfo
-from app.models.layout_model import LayoutCreate, LayoutUpdate
-from app.repositories.layout_repository import LayoutRepository
+from temply_app.core.exceptions import LayoutAlreadyExistsError, LayoutNotFoundError
+from temply_app.core.temply.temply_env import TemplyEnv
+from temply_app.models.common_model import User, VersionInfo
+from temply_app.models.layout_model import LayoutCreate, LayoutUpdate
+from temply_app.repositories.layout_repository import LayoutRepository
 
 
 @pytest.mark.asyncio

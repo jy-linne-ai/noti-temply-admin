@@ -52,7 +52,18 @@ poetry run mypy .
 
 ```bash
 # 서버 실행
-poetry run uvicorn main:create_app --reload --factory
+# poetry run uvicorn main:create_app --reload --factory
+e.g. .env.git
+```
+API_DEBUG=true
+; # CORS 설정
+; CORS_ORIGINS='["http://localhost:3000"]'
+NOTI_TEMPLY_DIR=../../noti-temply-efs
+noti_temply_repo_url=git@github.com:jy-linne-ai/noti-temply.git
+ENV=local
+```
+
+export env_file='.env.git' && poetry run uvicorn main:app --reload
 ```
 
 ### 프로덕션 모드

@@ -4,9 +4,9 @@ from datetime import datetime
 
 import pytest
 
-from app.core.temply.parser import meta_util
-from app.core.temply.parser.meta_model import JST, BaseMetaData
-from app.models.common_model import Meta
+from temply_app.core.temply.parser import meta_util
+from temply_app.core.temply.parser.meta_model import JST, BaseMetaData
+from temply_app.models.common_model import Meta
 
 
 @pytest.mark.asyncio
