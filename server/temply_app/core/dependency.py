@@ -1,3 +1,4 @@
+import os
 import threading
 from typing import Optional
 
@@ -54,15 +55,6 @@ def get_version_info(
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-def get_temply_env(
-    config: Config = Depends(get_config),
-    version_info: VersionInfo = Depends(get_version_info),
-) -> TemplyEnv:
-    """Get Temply Env"""
-    # cache ??
-    return TemplyVersionEnv(config, version_info).get_temply_env()
-
-
 def get_git_env(
     config: Config = Depends(get_config),
     version_info: VersionInfo = Depends(get_version_info),
@@ -73,28 +65,34 @@ def get_git_env(
     return GitEnv(config, version_info)
 
 
+def get_temply_env(
+    config: Config = Depends(get_config),
+    version_info: VersionInfo = Depends(get_version_info),
+    git_env: GitEnv | None = Depends(get_git_env),
+) -> TemplyEnv:
+    """Get Temply Env"""
+    return TemplyVersionEnv(config, version_info, git_env).get_temply_env()
+
+
 def get_layout_service(
     version_info: VersionInfo = Depends(get_version_info),
     temply_env: TemplyEnv = Depends(get_temply_env),
-    git_env: GitEnv | None = Depends(get_git_env),
 ):
     """Get Layout Service"""
-    return LayoutService(LayoutRepository(version_info, temply_env, git_env))
+    return LayoutService(LayoutRepository(version_info, temply_env))
 
 
 def get_partial_service(
     version_info: VersionInfo = Depends(get_version_info),
     temply_env: TemplyEnv = Depends(get_temply_env),
-    git_env: GitEnv | None = Depends(get_git_env),
 ):
     """Get Partial Service"""
-    return PartialService(PartialRepository(version_info, temply_env, git_env))
+    return PartialService(PartialRepository(version_info, temply_env))
 
 
 def get_template_service(
     version_info: VersionInfo = Depends(get_version_info),
     temply_env: TemplyEnv = Depends(get_temply_env),
-    git_env: GitEnv | None = Depends(get_git_env),
 ):
     """Get Template Service"""
-    return TemplateService(TemplateRepository(version_info, temply_env, git_env))
+    return TemplateService(TemplateRepository(version_info, temply_env))

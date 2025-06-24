@@ -2,7 +2,7 @@
 템플릿 리포지토리
 """
 
-from typing import Any, List, Optional
+from typing import Any, List
 
 from temply_app.core.git_env import GitEnv
 from temply_app.core.temply.parser.template_parser import TemplateParser
@@ -22,13 +22,12 @@ class TemplateRepository:
         self,
         version_info: VersionInfo,
         temply_env: TemplyEnv,
-        git_env: Optional[GitEnv] = None,
     ):
         """초기화"""
         self.version_info = version_info
         self.temply_env = temply_env
         self.template_parser = TemplateParser(self.temply_env)
-        self.git_env = git_env
+        self.git_env: GitEnv | None = temply_env.git_env
 
     async def create_component(
         self, user: User, template: str, component_create: TemplateComponentCreate

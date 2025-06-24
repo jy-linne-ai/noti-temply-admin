@@ -11,6 +11,7 @@ from jinja2schema.model import Dictionary  # type: ignore
 from markupsafe import escape
 
 from temply_app.core.config import Config
+from temply_app.core.git_env import GitEnv
 from temply_app.core.temply.parser.meta_model import JST, BaseMetaData
 from temply_app.core.temply.schema.generator import infer_from_ast, to_json_schema
 from temply_app.core.temply.schema.mergers import merge
@@ -31,11 +32,18 @@ class TemplateComponents(str, Enum):
 class TemplyEnv:
     """Temply 환경"""
 
-    def __init__(self, config: Config, version: str | None = None, pr_version: str | None = None):
+    def __init__(
+        self,
+        config: Config,
+        version: str | None = None,
+        pr_version: str | None = None,
+        git_env: GitEnv | None = None,
+    ):
         self._config: Config = config
         self.version: str | None = version
         self.pr_version: str | None = pr_version
         self.applied_version: str | None = None
+        self.git_env: GitEnv | None = git_env
         if config.is_dev() and pr_version:
             self.applied_version = pr_version
         else:

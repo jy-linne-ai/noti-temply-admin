@@ -19,13 +19,12 @@ class LayoutRepository:
         self,
         version_info: VersionInfo,
         temply_env: TemplyEnv,
-        git_env: GitEnv | None = None,
     ):
         """초기화"""
         self.version_info = version_info
         self.temply_env = temply_env
         self.layout_parser = LayoutParser(self.temply_env)
-        self.git_env = git_env
+        self.git_env: GitEnv | None = temply_env.git_env
 
     async def create(self, user: User, layout_create: LayoutCreate) -> Layout:
 

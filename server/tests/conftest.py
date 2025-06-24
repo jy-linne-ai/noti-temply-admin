@@ -17,6 +17,7 @@ from temply_app.models.common_model import User, VersionInfo
 def data_env():
     """data 환경 설정"""
     base = Path(__file__).parent / "data"
+    os.environ["env"] = "local"
     os.environ["NOTI_TEMPLY_DIR"] = str(base)
     conf = Config()
     return TemplyEnv(conf)
@@ -25,6 +26,7 @@ def data_env():
 @pytest.fixture()
 def temp_env(tmp_path):
     """테스트 환경 설정"""
+    os.environ["env"] = "local"
     os.environ["NOTI_TEMPLY_DIR"] = str(tmp_path)
     conf = Config()
     return TemplyEnv(conf)
@@ -39,6 +41,7 @@ def user():
 @pytest.fixture()
 def version_info():
     """버전 정보 설정"""
+    os.environ["env"] = "local"
     config = Config()
     return VersionInfo(config, "r123")
 

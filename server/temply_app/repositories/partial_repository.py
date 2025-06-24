@@ -1,6 +1,6 @@
 """Partial Repository"""
 
-from typing import List, Optional
+from typing import List
 
 from temply_app.core.git_env import GitEnv
 from temply_app.core.temply.parser.partial_parser import PartialParser
@@ -16,13 +16,12 @@ class PartialRepository:
         self,
         version_info: VersionInfo,
         temply_env: TemplyEnv,
-        git_env: Optional[GitEnv] = None,
     ):
         """Initialize"""
         self.version_info = version_info
         self.temply_env = temply_env
         self.partial_parser = PartialParser(self.temply_env)
-        self.git_env = git_env
+        self.git_env: GitEnv | None = temply_env.git_env
 
     async def create(self, user: User, partial_create: PartialCreate) -> Partial:
         """Create Partial"""
