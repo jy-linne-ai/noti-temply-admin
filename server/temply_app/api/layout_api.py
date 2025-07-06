@@ -1,4 +1,6 @@
-from typing import Any, Dict, List
+"""Layout API"""
+
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
