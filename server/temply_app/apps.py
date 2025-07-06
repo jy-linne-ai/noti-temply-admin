@@ -1,22 +1,20 @@
+"""Apps"""
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.routing import APIRouter
 
-from temply_app.api import (
-    layout_api,
-    partial_api,
-    template_api,
-    template_default_component_name_api,
-    template_name_api,
-    version_api,
-)
 from temply_app.core.config import Config
+from temply_app.router import set_router
 
 
 def create_app(config: Config) -> FastAPI:
     """Create App"""
-    app = FastAPI(title="Noti Temply Admin", description="템플릿 관리 시스템", version="1.0.0")
+    app = FastAPI(
+        title="Noti Temply Admin",
+        description="템플릿 관리 시스템",
+        version="1.0.0",
+    )
 
     # CORS 설정
     app.add_middleware(
@@ -39,29 +37,9 @@ def create_app(config: Config) -> FastAPI:
             content={"detail": f"Internal server error: {str(exc)}"},
         )
 
-    router = APIRouter()
-    router.include_router(layout_api.router, prefix="/versions/{version}/layouts", tags=["layouts"])
-    router.include_router(
-        partial_api.router, prefix="/versions/{version}/partials", tags=["partials"]
-    )
-    router.include_router(
-        template_api.router, prefix="/versions/{version}/templates", tags=["templates"]
-    )
+    # 라우터 설정
+    set_router(app)
 
-    router.include_router(
-        template_default_component_name_api.router,
-        prefix="/template-available-components",
-        tags=["template-available-components"],
-    )
-    router.include_router(version_api.router, prefix="/versions", tags=["versions"])
-    router.include_router(
-        template_name_api.router,
-        prefix="/versions/{version}/template-names",
-        tags=["template-names"],
-    )
-
-    app.include_router(router, prefix="/api/v1")
-    #
     return app
 
 

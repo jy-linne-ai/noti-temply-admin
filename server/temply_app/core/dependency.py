@@ -60,7 +60,7 @@ def get_git_env(
     version_info: VersionInfo = Depends(get_version_info),
 ) -> GitEnv | None:
     """Get Git Env"""
-    if not config.noti_temply_repo_url:
+    if not config.is_git_used():
         return None
     return GitEnv(config, version_info)
 

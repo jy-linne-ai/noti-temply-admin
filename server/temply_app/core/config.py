@@ -36,6 +36,10 @@ class Config(BaseSettings):
         """개발 환경 여부"""
         return self.env in self.dev_envs.split(",")
 
+    def is_git_used(self) -> bool:
+        """git 사용 여부"""
+        return self.noti_temply_repo_url != ""
+
     @property
     def cors_origins_list(self) -> List[str]:
         """CORS origins 리스트"""
