@@ -213,12 +213,12 @@ class TemplyEnv:
             items.append(item.name)
         return items
 
-    def get_component_names(self, template: str) -> list[str]:
+    def get_component_names(self, template_name: str) -> list[str]:
         """템플릿 컴포넌트 목록 조회"""
         components: list[str] = []
-        template_dir = self.templates_dir / template
+        template_dir = self.templates_dir / template_name
         if not template_dir.exists():
-            raise ValueError(f"Template {template} not found")
+            raise ValueError(f"Template {template_name} not found")
 
         for item in template_dir.iterdir():
             if not item.is_file():
@@ -230,18 +230,18 @@ class TemplyEnv:
             components.append(item.name)
         return components
 
-    def get_template_schema(self, template: str) -> Dict[str, Any]:
+    def get_template_schema(self, template_name: str) -> Dict[str, Any]:
         """템플릿 컴포넌트 스키마 조회"""
         params = Dictionary()
-        for component_name in self.get_component_names(template):
-            ast = self._source_parse_component(template, component_name)
+        for component_name in self.get_component_names(template_name):
+            ast = self._source_parse_component(template_name, component_name)
             rv = infer_from_ast(ast, self.env)
             params = merge(params, rv)
         return to_json_schema(params)
 
-    def get_template_schema_generator(self, template: str) -> Dict[str, Any]:
+    def get_template_schema_generator(self, template_name: str) -> Dict[str, Any]:
         """템플릿 컴포넌트 스키마 생성기 조회"""
-        return generate_object(self.load_schema_source(template))
+        return generate_object(self.load_schema_source(template_name))
 
     def render_component(
         self, template_name: str, component_name: str, schema_data: Dict[str, Any]
