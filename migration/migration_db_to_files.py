@@ -14,8 +14,16 @@ from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 
-import mysql.connector
-from mysql.connector import Error
+import mysql.connector  # type: ignore
+from mysql.connector import Error  # type: ignore
+
+# server 디렉토리를 Python 경로에 추가
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "server"))
+
+from temply_app.core.config import Config
+from temply_app.core.temply.parser.meta_model import BaseMetaData
+from temply_app.core.temply_version_env import TemplyVersionEnv
+from temply_app.models.common_model import VersionInfo
 
 
 class DatabaseMigration:
@@ -27,6 +35,14 @@ class DatabaseMigration:
         self.port = port
         self.output = output
         self.conn = None
+
+        output_dir = Path(self.output)
+        config = Config()
+        config.noti_temply_repo_url = ""
+        config.noti_temply_dir = str(output_dir.parent)
+        config.noti_temply_main_version_name = output_dir.name
+        version_info = VersionInfo.root_version(config)
+        self.temply_env = TemplyVersionEnv(config, version_info, git_env=None).get_temply_env()
 
     def connect(self) -> bool:
         """데이터베이스에 연결"""
@@ -65,30 +81,39 @@ class DatabaseMigration:
             file_name = item["name"].strip().replace("layouts/", "")
             with open(os.path.join(layout_dir, file_name), "w", encoding="utf-8") as f:
                 f.write(self._get_default_description(item["created"], item["updated"]))
+                f.write("\n")
                 f.write(item["content"])
         cursor.close()
         return data
 
     def _get_default_description(self, created: datetime, updated: datetime) -> str:
-        _created = created.strftime("%Y-%m-%d %H:%M:%S") if created else None
-        _updated = updated.strftime("%Y-%m-%d %H:%M:%S") if updated else None
-
         return (
-            "{#-"
-            "\n"
-            "description: system migration"
-            "\n"
-            f"created_at: {_created}"
-            "\n"
-            "created_by: system"
-            "\n"
-            f"updated_at: {_updated}"
-            "\n"
-            "updated_by: system"
-            "\n"
-            "-#}"
-            "\n"
+            self.temply_env.format_meta_block(
+                BaseMetaData(
+                    description="system migration",
+                    created_at=created,
+                    created_by="system",
+                    updated_at=updated,
+                    updated_by="system",
+                )
+            )
+        ).strip()
+
+    def _get_partial_import_names_for_partial(self, partial_id: int) -> List[str]:
+        cursor = self.conn.cursor(dictionary=True)
+        cursor.execute(
+            """
+            SELECT tp.import_name
+            from   partial_partial_associations ppa
+            inner join template_partials tp on ppa.child_partial_id = tp.id
+            where 1 = 1
+            and parent_partial_id = %s
+            """,
+            (partial_id,),
         )
+        data = cursor.fetchall()
+        cursor.close()
+        return [item["import_name"] for item in data]
 
     def export_partials(self):
         """파트리얼 데이터를 내보냄"""
@@ -103,9 +128,15 @@ class DatabaseMigration:
         data = cursor.fetchall()
         for item in data:
             file_name = item["import_name"].strip()
+            partial_import_names = self._get_partial_import_names_for_partial(item["id"])
             with open(os.path.join(partials_dir, file_name), "w", encoding="utf-8") as f:
                 f.write(self._get_default_description(item["created"], item["updated"]))
-                f.write(item["content"])
+                f.write("\n")
+                if partial_import_names:
+                    for s in self.temply_env.format_partial_imports(set(partial_import_names)):
+                        f.write(s)
+                        f.write("\n")
+                f.write(self.temply_env.format_partial_content(item["content"]))
         cursor.close()
         return data
 
@@ -123,9 +154,9 @@ class DatabaseMigration:
         )
         data = cursor.fetchone()
         cursor.close()
-        return data["name"] if data else None
+        return data["name"].strip().replace("layouts/", "") if data else None
 
-    def _get_partial_import_names(self, template_id: int) -> List[str]:
+    def _get_partial_import_names_for_template(self, template_id: int) -> List[str]:
         cursor = self.conn.cursor(dictionary=True)
         cursor.execute(
             """
@@ -157,22 +188,42 @@ class DatabaseMigration:
             os.makedirs(category_dir, exist_ok=True)
             file_name = item["format"].strip()
             layout_name = self._get_layout_name(item["layout_id"])
-            partial_import_names = self._get_partial_import_names(item["id"])
+            partial_import_names = self._get_partial_import_names_for_template(item["id"])
             with open(os.path.join(category_dir, file_name), "w", encoding="utf-8") as f:
                 f.write(self._get_default_description(item["created"], item["updated"]))
+                f.write("\n")
                 if layout_name:
-                    f.write(f"{{%- extends 'layouts/{layout_name}' -%}}\n")
+                    # layouts/ 접두사가 이미 있으면 제거
+                    f.write(self.temply_env.format_layout_block(layout_name))
+                    f.write("\n")
                 if partial_import_names:
-                    for partial_import_name in partial_import_names:
-                        f.write(
-                            f"{{%- from 'partials/{partial_import_name}' import render as {partial_import_name} with context -%}}\n"
-                        )
+                    for s in self.temply_env.format_partial_imports(set(partial_import_names)):
+                        f.write(s)
+                        f.write("\n")
                 f.write(item["content"])
         cursor.close()
         return data
 
+    async def export_schema(self):
+        """스키마 데이터를 내보냄"""
 
-def main(host: str, user: str, password: str, database: str, port: int, output: str):
+        for template_name in self.temply_env.get_template_names():
+            template_dir = os.path.join(self.output, "templates", template_name)
+            schema_file_path = os.path.join(template_dir, "schema.json")
+            try:
+                schema = self.temply_env.get_template_schema(template_name)
+                with open(schema_file_path, "w", encoding="utf-8") as f:
+                    json.dump(schema, f, indent=2, ensure_ascii=False)
+                print(f"✅ {schema_file_path} 파일이 생성되었습니다.")
+            except Exception as e:
+                print(f"❌ {template_name} 템플릿의 스키마 추출 실패: {e}")
+                import traceback
+
+                print(traceback.format_exc())
+                continue
+
+
+async def main(host: str, user: str, password: str, database: str, port: int, output: str):
     """MySQL 데이터를 JSON 파일로 내보내는 도구"""
 
     print("🚀 MySQL 데이터 마이그레이션을 시작합니다...")
@@ -185,11 +236,10 @@ def main(host: str, user: str, password: str, database: str, port: int, output: 
         return 1
 
     try:
-        # 모든 테이블 내보내기
-        # success = migration.export_all_tables(output)
         migration.export_layouts()
         migration.export_partials()
         migration.export_templates()
+        await migration.export_schema()
         success = True
         return 0 if success else 1
     finally:
@@ -213,14 +263,18 @@ if __name__ == "__main__":
         if not output:
             raise ValueError("output 파라미터가 필요합니다.")
 
-        # Click 함수를 직접 호출
-        main(
-            host=host,
-            user=user,
-            password=password,
-            database=database,
-            port=port,
-            output=output,
+        # async 함수를 실행
+        import asyncio
+
+        asyncio.run(
+            main(
+                host=host,
+                user=user,
+                password=password,
+                database=database,
+                port=port,
+                output=output,
+            )
         )
 
     except KeyError as e:
