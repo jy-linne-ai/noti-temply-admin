@@ -10,7 +10,8 @@ from temply_app.core.config import Config
 from temply_app.router import set_router
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO) 
+logging.basicConfig(level=logging.INFO)
+
 
 def create_app(config: Config) -> FastAPI:
     """Create App"""
@@ -23,7 +24,7 @@ def create_app(config: Config) -> FastAPI:
     # CORS 설정
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=config.cors_origins,
+        allow_origins=config.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

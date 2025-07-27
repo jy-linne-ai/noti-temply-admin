@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from temply_app.core.config import Config
 from temply_app.core.dependency import get_config, get_version_info
 from temply_app.core.git_env import GitEnv
+from temply_app.core.utils.git_util import GitUtil
 from temply_app.models.common_model import CreateVersionRequest, ReturnVersionInfo, VersionInfo
 
 logger = logging.getLogger(__name__)
@@ -20,11 +21,11 @@ router = APIRouter()
 
 def _get_versions(git_env: GitEnv) -> List[ReturnVersionInfo]:
     versions = []
-    for v in git_env.get_versions():
+    for v in GitUtil.get_versions(git_env):
         _git_env = GitEnv(git_env.config, v)
         if not v.is_root and not os.path.exists(_git_env.version_path):
-            _git_env.create_version()
-
+            GitUtil.create_version(_git_env)
+        GitUtil.refresh_version(_git_env)
         versions.append(ReturnVersionInfo(version=v.version, is_root=v.is_root))
     if not versions:
         raise HTTPException(status_code=404, detail="No versions found")
@@ -104,7 +105,7 @@ async def create_version(
             raise HTTPException(status_code=400, detail="Cannot create main version")
 
         logger.info("Creating new version: %s", request.version)
-        git_env.create_version()
+        GitUtil.create_version(git_env)
     else:
         if request.version == config.noti_temply_main_version_name:
             raise HTTPException(status_code=400, detail="Cannot create main version")
@@ -132,7 +133,7 @@ async def delete_version(
     logger.info("Attempting to delete version: %s", version_info.version)
     if config.is_git_used():
         git_env: GitEnv = GitEnv(config, version_info)
-        git_env.delete_version()
+        GitUtil.delete_version(git_env)
     else:
         if version_info.is_root:
             raise HTTPException(status_code=400, detail="Cannot delete main version")

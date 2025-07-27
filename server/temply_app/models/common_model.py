@@ -61,6 +61,10 @@ class VersionInfo:
                 self.revision_version = parts[0]
                 self.pr_number = f"pr{parts[1]}" if len(parts) > 1 else None
 
+    def get_cache_key(self) -> str:
+        """Cache Key"""
+        return f"{self.version}_{self.revision_version}_{self.pr_number}"
+
     @classmethod
     def root_version(cls, config: Config) -> "VersionInfo":
         """버전 정보 모델 생성"""

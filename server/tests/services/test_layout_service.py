@@ -96,7 +96,7 @@ async def test_layout_service_update(version_info: VersionInfo, temp_env: Temply
         content="updated content",
         description="updated description",
     )
-    updated_layout = await service.update(update_user, created_layout.name, update_data)
+    updated_layout, _ = await service.update(update_user, created_layout.name, update_data)
     assert updated_layout is not None
 
     # 수정된 레이아웃 검증
@@ -213,7 +213,7 @@ async def test_layout_service_update_blocks(
     </body>
     </html>
     """
-    updated_layout = await layout_service.update(
+    updated_layout, _ = await layout_service.update(
         user,
         layout.name,
         LayoutUpdate(

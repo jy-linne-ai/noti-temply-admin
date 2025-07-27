@@ -4,6 +4,7 @@ This module provides functionality to parse Jinja2 templates.
 """
 
 import asyncio
+import json
 import os
 import shutil
 from typing import Any, List, Optional, Set
@@ -16,11 +17,11 @@ from temply_app.core.exceptions import (
     TemplateAlreadyExistsError,
     TemplateNotFoundError,
 )
-from temply_app.core.temply.parser import meta_util
 from temply_app.core.temply.parser.meta_model import BaseMetaData, TemplateComponentMetaData
 from temply_app.core.temply.temply_env import TemplyEnv
+from temply_app.core.utils import parser_meta_util
 from temply_app.models.common_model import User
-from temply_app.core.cache.lru_cache import LRUCache
+
 
 class TemplateParser:
     """Parser for Jinja2 templates."""
@@ -77,7 +78,7 @@ class TemplateParser:
         """
         try:
             content, _, _ = self.env.load_component_source(template_name, component_name)
-            meta, block = meta_util.parse(content)
+            meta, block = parser_meta_util.parse(content)
             layout, block = await self._extract_layout(block)
             partials, block = await self._extract_partials(block)
             return TemplateComponentMetaData(
@@ -188,6 +189,18 @@ class TemplateParser:
         return [
             component for component in self.nodes.values() if component.template == template_name
         ]
+
+    async def sync_schema(self, template_name: str) -> str | None:
+        """Sync schema by template."""
+        await self._ensure_initialized()
+        load_schema_source = self.env.load_schema_source(template_name)
+        schema = self.env.get_template_schema(template_name)
+        if schema == load_schema_source:
+            return None
+        schema_path = self.env.templates_dir / self.env.build_component_schema_path(template_name)
+        with open(schema_path, "w", encoding=self.env.file_encoding) as f:
+            json.dump(schema, f, indent=2, ensure_ascii=False)
+        return f"{template_name}/{schema_path.name}"
 
     async def get_schema_by_template(self, template_name: str) -> dict[str, Any]:
         """Get schema by template."""
@@ -480,22 +493,9 @@ class TemplateParser:
         """Render Component"""
         return self.env.render_component(template_name, component_name, data)
 
-
-_TEMPLATE_PARSER_CACHE: LRUCache = LRUCache()
-
-def get_template_parser(temply_env: TemplyEnv) -> TemplateParser:
-    """Get a template parser."""
-    template_parser = _TEMPLATE_PARSER_CACHE.get(str(temply_env))
-    if template_parser is not None:
-        return template_parser
-    template_parser = TemplateParser(temply_env)
-    _TEMPLATE_PARSER_CACHE.set(str(temply_env), template_parser)
-    return template_parser
-
-def clear_template_parser_cache() -> None:
-    """Clear all template parser cache."""
-    _TEMPLATE_PARSER_CACHE.clear()
-
-def clear_template_parser_cache_by_temply_env(temply_env: TemplyEnv) -> None:
-    """Clear template parser cache by temply env."""
-    _TEMPLATE_PARSER_CACHE.delete(str(temply_env))
+    async def get_components_using_layout(
+        self, layout_name: str
+    ) -> List[TemplateComponentMetaData]:
+        """Get components using layout."""
+        await self._ensure_initialized()
+        return [component for component in self.nodes.values() if component.layout == layout_name]

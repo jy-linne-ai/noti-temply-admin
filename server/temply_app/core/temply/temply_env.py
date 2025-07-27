@@ -11,7 +11,6 @@ from jinja2schema.model import Dictionary  # type: ignore
 from markupsafe import escape
 
 from temply_app.core.config import Config
-from temply_app.core.git_env import GitEnv
 from temply_app.core.temply.parser.meta_model import JST, BaseMetaData
 from temply_app.core.temply.schema.generator import infer_from_ast, to_json_schema
 from temply_app.core.temply.schema.mergers import merge
@@ -37,13 +36,11 @@ class TemplyEnv:
         config: Config,
         version: str | None = None,
         pr_version: str | None = None,
-        git_env: GitEnv | None = None,
     ):
         self._config: Config = config
         self.version: str | None = version
         self.pr_version: str | None = pr_version
         self.applied_version: str | None = None
-        self.git_env: GitEnv | None = git_env
         if config.is_dev() and pr_version:
             self.applied_version = pr_version
         else:
@@ -137,8 +134,11 @@ class TemplyEnv:
 
     def load_schema_source(self, template_name: str) -> dict[str, Any]:
         """스키마 소스 조회"""
+        schema_path = self.templates_dir / template_name / self.schema_filename
+        if not schema_path.exists():
+            return {}
         with open(
-            self.templates_dir / template_name / self.schema_filename,
+            schema_path,
             "r",
             encoding=self.file_encoding,
         ) as f:
@@ -266,7 +266,7 @@ class TemplyEnv:
         """템플릿 컴포넌트 경로 조회"""
         return self._build_template_path(template_name) + "/" + component_name
 
-    def _build_component_schema_path(self, template_name: str) -> str:
+    def build_component_schema_path(self, template_name: str) -> str:
         """템플릿 컴포넌트 스키마 경로 조회"""
         return self._build_template_path(template_name) + "/" + self.schema_filename
 

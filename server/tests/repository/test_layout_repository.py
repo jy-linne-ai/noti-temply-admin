@@ -69,7 +69,7 @@ async def test_layout_update(version_info: VersionInfo, temp_env: TemplyEnv, use
     # 업데이트
     update_content = "updated content"
     update_description = "updated description"
-    update_layout = await layout_repository.update(
+    update_layout, _ = await layout_repository.update(
         user,
         create_layout.name,
         LayoutUpdate(

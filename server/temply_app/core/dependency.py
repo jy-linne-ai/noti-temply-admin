@@ -1,13 +1,12 @@
-import os
 import threading
-from typing import List, Optional
+from typing import Optional
 
-from fastapi import Depends, HTTPException, Path
+from fastapi import Depends, Path
 
 from temply_app.core.config import Config
 from temply_app.core.git_env import GitEnv
 from temply_app.core.temply.temply_env import TemplyEnv
-from temply_app.core.temply_version_env import get_temply_version_env
+from temply_app.core.utils.cache_util import get_temply_version_env
 from temply_app.models.common_model import User, VersionInfo
 from temply_app.repositories.layout_repository import LayoutRepository
 from temply_app.repositories.partial_repository import PartialRepository
@@ -21,9 +20,6 @@ def get_user() -> User:
     """Get User"""
     return User(name="admin")
 
-
-# TODO 버전 별 env 관리가 필요
-# env_list[version] = TemplyEnv
 
 _config: Optional[Config] = None
 _config_lock = threading.Lock()
@@ -39,7 +35,6 @@ def get_config() -> Config:
                 _config = Config()
     return _config
 
-VERSION_INFO_LIST: dict[str, VersionInfo] = {}
 
 def get_version_info(
     version: str = Path(
@@ -49,14 +44,7 @@ def get_version_info(
     config: Config = Depends(get_config),
 ) -> VersionInfo:
     """Get Version Info"""
-    try:
-        if version in VERSION_INFO_LIST:
-            return VERSION_INFO_LIST[version]
-        version_info = VersionInfo(config, version) 
-        VERSION_INFO_LIST[version] = version_info   
-        return version_info
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return VersionInfo(config, version)
 
 
 def get_git_env(
@@ -72,31 +60,33 @@ def get_git_env(
 def get_temply_env(
     config: Config = Depends(get_config),
     version_info: VersionInfo = Depends(get_version_info),
-    git_env: GitEnv | None = Depends(get_git_env),
 ) -> TemplyEnv:
     """Get Temply Env"""
-    return get_temply_version_env(config, version_info, git_env).get_temply_env()
+    return get_temply_version_env(config, version_info).get_temply_env()
 
 
 def get_layout_service(
     version_info: VersionInfo = Depends(get_version_info),
     temply_env: TemplyEnv = Depends(get_temply_env),
+    git_env: GitEnv | None = Depends(get_git_env),
 ):
     """Get Layout Service"""
-    return LayoutService(LayoutRepository(version_info, temply_env))
+    return LayoutService(LayoutRepository(version_info, temply_env, git_env))
 
 
 def get_partial_service(
     version_info: VersionInfo = Depends(get_version_info),
     temply_env: TemplyEnv = Depends(get_temply_env),
+    git_env: GitEnv | None = Depends(get_git_env),
 ):
     """Get Partial Service"""
-    return PartialService(PartialRepository(version_info, temply_env))
+    return PartialService(PartialRepository(version_info, temply_env, git_env))
 
 
 def get_template_service(
     version_info: VersionInfo = Depends(get_version_info),
     temply_env: TemplyEnv = Depends(get_temply_env),
+    git_env: GitEnv | None = Depends(get_git_env),
 ):
     """Get Template Service"""
-    return TemplateService(TemplateRepository(version_info, temply_env))
+    return TemplateService(TemplateRepository(version_info, temply_env, git_env))

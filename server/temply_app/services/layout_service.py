@@ -28,7 +28,9 @@ class LayoutService:
         """레이아웃 목록 조회"""
         return await self.repository.list()
 
-    async def update(self, user: User, layout_name: str, layout_update: LayoutUpdate) -> Layout:
+    async def update(
+        self, user: User, layout_name: str, layout_update: LayoutUpdate
+    ) -> tuple[Layout, List[str]]:
         """레이아웃 수정"""
         return await self.repository.update(user, layout_name, layout_update)
 

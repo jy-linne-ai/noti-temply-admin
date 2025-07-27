@@ -10,8 +10,7 @@ from typing import List
 import pytest
 from jinja2 import TemplateNotFound
 from jinja2schema.model import Dictionary  # type: ignore
-from jsonschema import validate
-from jsonschema.validators import RefResolver
+from jsonschema import RefResolver, validate
 
 from temply_app.core.temply.parser.meta_model import BaseMetaData
 from temply_app.core.temply.schema.mergers import merge
