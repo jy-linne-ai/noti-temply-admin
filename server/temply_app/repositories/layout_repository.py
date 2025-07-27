@@ -6,7 +6,7 @@ from typing import List
 
 from temply_app.core.exceptions import LayoutNotFoundError
 from temply_app.core.git_env import GitEnv
-from temply_app.core.temply.parser.layout_parser import LayoutParser
+from temply_app.core.temply.parser.layout_parser import get_layout_parser
 from temply_app.core.temply.temply_env import TemplyEnv
 from temply_app.models.common_model import User, VersionInfo
 from temply_app.models.layout_model import Layout, LayoutCreate, LayoutUpdate
@@ -23,7 +23,7 @@ class LayoutRepository:
         """초기화"""
         self.version_info = version_info
         self.temply_env = temply_env
-        self.layout_parser = LayoutParser(self.temply_env)
+        self.layout_parser = get_layout_parser(self.temply_env)
         self.git_env: GitEnv | None = temply_env.git_env
 
     async def create(self, user: User, layout_create: LayoutCreate) -> Layout:

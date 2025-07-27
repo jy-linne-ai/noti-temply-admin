@@ -11,7 +11,7 @@
 conda env create -f environment.yml
 
 # Conda 환경 활성화
-conda activate noti-temply-admin
+conda activate noti-temply
 ```
 
 ### 2. Poetry 의존성 설치
@@ -52,7 +52,7 @@ poetry run mypy .
 
 ```bash
 # 서버 실행
-# poetry run uvicorn main:create_app --reload --factory
+# poetry run uvicorn main:get_app --reload --factory
 e.g. .env.git
 ```
 API_DEBUG=true
@@ -63,7 +63,8 @@ noti_temply_repo_url=git@github.com:jy-linne-ai/noti-temply.git
 ENV=local
 ```
 
-export env_file='.env.git' && poetry run uvicorn main:app --reload
+export env_file='.env.git' && poetry run uvicorn main:get_app --reload --factory
+
 ```
 
 ### 프로덕션 모드
@@ -71,6 +72,12 @@ export env_file='.env.git' && poetry run uvicorn main:app --reload
 ```bash
 # 서버 실행
 poetry run python main.py --host 0.0.0.0 --port 8000
+
+export env_file='.env.git' && poetry run uvicorn main:app --reload
+
+export env_file='.env.git' && poetry run python main.py
+
+
 ```
 
 ## API 문서

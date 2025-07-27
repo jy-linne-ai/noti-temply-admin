@@ -3,7 +3,7 @@
 from typing import List
 
 from temply_app.core.git_env import GitEnv
-from temply_app.core.temply.parser.partial_parser import PartialParser
+from temply_app.core.temply.parser.partial_parser import get_partial_parser
 from temply_app.core.temply.temply_env import TemplyEnv
 from temply_app.models.common_model import User, VersionInfo
 from temply_app.models.partial_model import Partial, PartialCreate, PartialUpdate
@@ -20,7 +20,7 @@ class PartialRepository:
         """Initialize"""
         self.version_info = version_info
         self.temply_env = temply_env
-        self.partial_parser = PartialParser(self.temply_env)
+        self.partial_parser = get_partial_parser(self.temply_env)
         self.git_env: GitEnv | None = temply_env.git_env
 
     async def create(self, user: User, partial_create: PartialCreate) -> Partial:

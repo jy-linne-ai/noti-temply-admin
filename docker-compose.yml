@@ -1,0 +1,47 @@
+services:
+  frontend:
+    container_name: noti-temply-admin-frontend
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+      cache_from:
+        - node:18-alpine
+      args:
+        - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    networks:
+      - noti-temply-app-network
+    depends_on:
+      - backend
+
+  backend:
+    container_name: noti-temply-admin-backend
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      cache_from:
+        - python:3.11-slim
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - NOTI_TEMPLY_DIR=/mnt/efs/noti-service-dev
+      - NOTI_TEMPLY_REPO_URL=git@github.com:mieeru/noti-temply.git
+      # - GIT_USER_NAME=noti-temply-admin
+      # - GIT_USER_EMAIL=admin@noti-temply.com
+      # - GIT_SSH_KEY_PATH=/root/.ssh/id_ed25519
+    volumes:
+      - /Users/joajun/Documents/GitHub/noti-temply-efs-docker:/mnt/efs/noti-service-dev
+      - /Users/joajun/Documents/GitHub/noti-temply:/mnt/efs/noti-service-dev/main
+      - ~/.ssh/jy-linne-ai-GitHub:/home/python/.ssh/id_ed25519:ro
+      - ~/.ssh/config.docker:/home/python/.ssh/config:ro
+    networks:
+      - noti-temply-app-network
+
+networks:
+  noti-temply-app-network:
+    driver: bridge 

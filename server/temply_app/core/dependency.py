@@ -1,13 +1,13 @@
 import os
 import threading
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import Depends, HTTPException, Path
 
 from temply_app.core.config import Config
 from temply_app.core.git_env import GitEnv
 from temply_app.core.temply.temply_env import TemplyEnv
-from temply_app.core.temply_version_env import TemplyVersionEnv
+from temply_app.core.temply_version_env import get_temply_version_env
 from temply_app.models.common_model import User, VersionInfo
 from temply_app.repositories.layout_repository import LayoutRepository
 from temply_app.repositories.partial_repository import PartialRepository
@@ -39,18 +39,22 @@ def get_config() -> Config:
                 _config = Config()
     return _config
 
+VERSION_INFO_LIST: dict[str, VersionInfo] = {}
 
 def get_version_info(
     version: str = Path(
         ...,
-        example="main",
         description="Version or revision (e.g., 'r1', 'r1_pr123', 'main')",
     ),
     config: Config = Depends(get_config),
 ) -> VersionInfo:
     """Get Version Info"""
     try:
-        return VersionInfo(config, version)
+        if version in VERSION_INFO_LIST:
+            return VERSION_INFO_LIST[version]
+        version_info = VersionInfo(config, version) 
+        VERSION_INFO_LIST[version] = version_info   
+        return version_info
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -71,7 +75,7 @@ def get_temply_env(
     git_env: GitEnv | None = Depends(get_git_env),
 ) -> TemplyEnv:
     """Get Temply Env"""
-    return TemplyVersionEnv(config, version_info, git_env).get_temply_env()
+    return get_temply_version_env(config, version_info, git_env).get_temply_env()
 
 
 def get_layout_service(

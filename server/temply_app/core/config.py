@@ -19,7 +19,7 @@ class Config(BaseSettings):
     api_debug: bool = False
     env: str = "dev"
     dev_envs: str = "dev,bx"  # 쉼표로 구분된 문자열로 받음
-    cors_origins: str = "http://localhost:3000"  # 쉼표로 구분된 문자열로 받음
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"  # 쉼표로 구분된 문자열로 받음
 
     # 파일 설정
     file_encoding: str = "utf-8"
@@ -27,6 +27,11 @@ class Config(BaseSettings):
     # "git@github.com:jy-linne-ai/noti-temply.git"
     noti_temply_dir: str = "noti-temply"
     noti_temply_main_version_name: str = "main"
+
+    # Redis 설정
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_db: int = 0
 
     def is_local(self) -> bool:
         """로컬 환경 여부"""

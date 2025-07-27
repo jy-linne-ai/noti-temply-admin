@@ -1,4 +1,4 @@
-name: noti-temply-admin
+name: noti-temply
 channels:
   - conda-forge
   - defaults

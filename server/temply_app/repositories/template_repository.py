@@ -5,7 +5,7 @@
 from typing import Any, List
 
 from temply_app.core.git_env import GitEnv
-from temply_app.core.temply.parser.template_parser import TemplateParser
+from temply_app.core.temply.parser.template_parser import get_template_parser
 from temply_app.core.temply.temply_env import TemplyEnv
 from temply_app.models.common_model import User, VersionInfo
 from temply_app.models.template_model import (
@@ -26,7 +26,7 @@ class TemplateRepository:
         """초기화"""
         self.version_info = version_info
         self.temply_env = temply_env
-        self.template_parser = TemplateParser(self.temply_env)
+        self.template_parser = get_template_parser(self.temply_env)
         self.git_env: GitEnv | None = temply_env.git_env
 
     async def create_component(

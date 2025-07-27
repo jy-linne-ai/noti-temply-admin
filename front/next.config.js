@@ -1,36 +1,93 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  // 빌드 최적화
+  output: 'standalone',
+  
+  // 실험적 기능
+  experimental: {
+    // 출력 추적 활성화 (Docker 최적화)
+    outputFileTracingRoot: undefined,
+  },
+  
+  // 이미지 최적화
+  images: {
+    // 외부 이미지 도메인 허용
+    domains: ['localhost'],
+    // 이미지 최적화 비활성화 (개발 환경에서)
+    unoptimized: process.env.NODE_ENV === 'development',
+  },
+  
+  // 웹팩 최적화
   webpack: (config, { dev, isServer }) => {
-    // 개발 환경에서 HMR을 더 잘 지원하도록 설정
-    if (dev && !isServer) {
-      config.watchOptions = {
-        poll: 1000, // 1초마다 변경사항 체크
-        aggregateTimeout: 300, // 변경사항이 감지되면 300ms 후에 다시 빌드
+    // 개발 환경에서 캐시 활성화
+    if (dev) {
+      config.cache = {
+        type: 'filesystem',
+        buildDependencies: {
+          config: [__filename],
+        },
       };
     }
-
-    // Monaco Editor 웹팩 설정
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-      };
-    }
-
+    
+    // 번들 크기 최적화
+    config.optimization = {
+      ...config.optimization,
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      },
+    };
+    
     return config;
   },
-  // API 라우트를 위한 설정
-  async rewrites() {
+  
+  // 컴파일러 최적화
+  compiler: {
+    // 불필요한 console.log 제거 (프로덕션)
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  
+  // 타입스크립트 최적화
+  typescript: {
+    // 빌드 시 타입 체크 건너뛰기 (개발 환경에서)
+    ignoreBuildErrors: process.env.NODE_ENV === 'development',
+  },
+  
+  // ESLint 최적화
+  eslint: {
+    // 빌드 시 ESLint 건너뛰기 (개발 환경에서)
+    ignoreDuringBuilds: process.env.NODE_ENV === 'development',
+  },
+  
+  // 환경 변수
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  },
+  
+  // 헤더 설정
+  async headers() {
     return [
       {
-        source: '/api/:path*',
-        destination: '/api/:path*',
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+        ],
       },
     ];
   },
-  // 폰트 최적화 비활성화
-  optimizeFonts: false,
 };
 
 module.exports = nextConfig; 

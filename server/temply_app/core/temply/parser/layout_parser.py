@@ -12,6 +12,7 @@ from temply_app.core.temply.parser import meta_util
 from temply_app.core.temply.parser.meta_model import BaseMetaData, LayoutMetaData
 from temply_app.core.temply.temply_env import TemplyEnv
 from temply_app.models.common_model import User
+from temply_app.core.cache.lru_cache import LRUCache
 
 
 class LayoutParser:
@@ -259,3 +260,22 @@ class LayoutParser:
             del self.nodes[layout_name]
         finally:
             self._initialized = True
+
+_LAYOUT_PARSER_CACHE: LRUCache = LRUCache()
+
+def get_layout_parser(temply_env: TemplyEnv) -> LayoutParser:
+    """Get a layout parser."""
+    layout_parser = _LAYOUT_PARSER_CACHE.get(str(temply_env))
+    if layout_parser is not None:
+        return layout_parser
+    layout_parser = LayoutParser(temply_env)
+    _LAYOUT_PARSER_CACHE.set(str(temply_env), layout_parser)
+    return layout_parser
+
+def clear_layout_parser_cache() -> None:
+    """Clear all layout parser cache."""
+    _LAYOUT_PARSER_CACHE.clear()
+
+def clear_layout_parser_cache_by_temply_env(temply_env: TemplyEnv) -> None:
+    """Clear layout parser cache by temply env."""
+    _LAYOUT_PARSER_CACHE.delete(str(temply_env))

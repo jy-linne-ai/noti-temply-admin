@@ -34,7 +34,7 @@ import {
   Add as AddIcon,
   Refresh as RefreshIcon,
 } from '@mui/icons-material';
-import { Template } from '@/types/template';
+import { TemplateComponent } from '@/types/template';
 import { HtmlEditor } from '@/components/Editor';
 import { Preview } from '@/components/Preview';
 import { useApi } from '@/lib/api';
@@ -43,11 +43,11 @@ import { formatDate } from '@/lib/utils';
 interface TemplateDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedComponent: Template | null;
+  selectedComponent: TemplateComponent | null;
   selectedTemplateName: string;
   selectedComponentName: string;
-  drawerComponents: Template[];
-  onComponentClick: (template: string, component: Template) => void;
+  drawerComponents: TemplateComponent[];
+  onComponentClick: (template: string, component: TemplateComponent) => void;
   version: string;
   onTemplateChange?: () => void;
 }
@@ -70,7 +70,7 @@ export function TemplateDrawer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [allComponents, setAllComponents] = useState<string[]>([]);
-  const [mappedComponents, setMappedComponents] = useState<Template[]>([]);
+  const [mappedComponents, setMappedComponents] = useState<TemplateComponent[]>([]);
   const [componentTypes, setComponentTypes] = useState<string[]>([]);
   const [previewContent, setPreviewContent] = useState<string>('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -87,7 +87,7 @@ export function TemplateDrawer({
   // 메모리 캐시를 위한 ref
   const cacheRef = useRef<{
     components: string[];
-    mapped: Template[];
+    mapped: TemplateComponent[];
     types: string[];
     lastVersion: string;
     lastTemplate: string;

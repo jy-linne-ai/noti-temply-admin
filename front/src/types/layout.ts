@@ -1,4 +1,4 @@
-import { Template } from './template';
+import { TemplateComponent } from './template';
 
 export interface Layout {
   name: string;
@@ -9,7 +9,7 @@ export interface Layout {
   updated_at: string;
   updated_by: string | null;
   version: string;
-  templates?: Template[];
+  templates?: TemplateComponent[];
 }
 
 export interface CreateLayoutRequest {

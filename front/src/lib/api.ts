@@ -146,9 +146,7 @@ export interface ApiClient {
 
   // 템플릿 컴포넌트 관련 API
   getTemplateAvailableComponents: () => Promise<string[]>;
-  // getTemplateComponent: (version: string, template: string, component: string, skipCache?: boolean) => Promise<Component>;
-  // updateTemplateComponent: (version: string, template: string, component: string, data: Partial<Component>) => Promise<Component>;
-
+  getGitStatus: () => Promise<{ is_git_used: boolean }>;
   // New methods
   renderComponent: (version: string, template: string, component: string, data: Record<string, any>) => Promise<any>;
 }
@@ -201,15 +199,8 @@ export function useApi(): ApiClient {
       api.get(API_ENDPOINTS.templates.variables(version, template)).then(handleResponse),
 
     // 템플릿 컴포넌트 관련 API
-    getTemplateAvailableComponents: () => api.get('/template-available-components').then(handleResponse),
-    // getTemplateComponent: (version: string, template: string, component: string, skipCache = false) => 
-    //   cachedApiCall(
-    //     `template-component-${version}-${template}-${component}`,
-    //     () => api.get(API_ENDPOINTS.templates.components.get(version, template, component)).then(handleResponse),
-    //     skipCache
-    //   ),
-    // updateTemplateComponent: (version: string, template: string, component: string, data: Partial<Component>) => 
-    //   api.put(API_ENDPOINTS.templates.components.get(version, template, component), data).then(handleResponse),
+    getTemplateAvailableComponents: () => api.get('/system/template-available-components').then(handleResponse),
+    getGitStatus: () => api.get('/system/git-status').then(handleResponse),
 
     // New methods
     renderComponent: async (version: string, template: string, component: string, data: Record<string, any>) => {

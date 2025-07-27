@@ -47,6 +47,15 @@ export default function VersionSelectPage() {
   const router = useRouter();
   const api = useApi();
   const isInitialized = useRef(false);
+  const [isGitUsed, setIsGitUsed] = useState(false);
+
+  useEffect(() => {
+    const getGitStatus = async () => {
+      const response = await api.getGitStatus();
+      setIsGitUsed(response.is_git_used);
+    };
+    getGitStatus();
+  }, []);
 
   useEffect(() => {
     if (!isInitialized.current) {
@@ -94,9 +103,9 @@ export default function VersionSelectPage() {
       // 버전 유효성 체크
       await api.getVersion(version);
       
-      // 쿠키에 버전 저장
-      document.cookie = `version=${version}; path=/`;
-      
+      localStorage.setItem('version', version);
+      localStorage.setItem('isGitUsed', isGitUsed.toString());
+
       // 버전별 대시보드로 이동
       router.push(`/versions/${version}/dashboard`);
     } catch (error) {
@@ -106,6 +115,10 @@ export default function VersionSelectPage() {
   };
 
   const handleCreateVersion = async () => {
+    if (isGitUsed) {
+      alert('Git을 사용하고 있습니다. 버전 생성을 할 수 없습니다.');
+      return;
+    }
     if (!newVersion.trim()) {
       alert('버전을 입력해주세요.');
       return;
@@ -123,6 +136,10 @@ export default function VersionSelectPage() {
   };
 
   const handleDeleteClick = (version: string, isRoot: boolean | undefined) => {
+    if (isGitUsed) {
+      alert('Git을 사용하고 있습니다. 버전 삭제를 할 수 없습니다.');
+      return;
+    }
     if (isRoot) {
       alert('Root 버전은 삭제할 수 없습니다.');
       return;
@@ -207,8 +224,8 @@ export default function VersionSelectPage() {
             />
           </Box>
 
-          {isCreating && (
-            <Paper sx={{ p: 2, mb: 3, bgcolor: 'grey.50' }}>
+         {isCreating && !isGitUsed && (
+            <Paper sx={{ p: 2, mb: 3, bgcolor: 'g rey.50' }}>
               <Box display="flex" gap={1}>
                 <TextField
                   fullWidth
@@ -263,8 +280,10 @@ export default function VersionSelectPage() {
                     boxShadow: 1,
                     },
                   }}
+                
                 secondaryAction={
-                  <Tooltip title={version.is_root ? "Root 버전은 삭제할 수 없습니다" : "삭제"}>
+                  isGitUsed ? null : (
+                  <Tooltip title={version.is_root ? "Root 버전은 삭제할 수 없습니다" : isGitUsed ? "Git을 사용하고 있습니다. 버전 삭제를 할 수 없습니다." : "삭제"}>
                     <span>
                       <IconButton
                         edge="end"
@@ -279,7 +298,7 @@ export default function VersionSelectPage() {
                       </IconButton>
                     </span>
                   </Tooltip>
-                }
+                )}
               >
                   <ListItemText
                     primary={

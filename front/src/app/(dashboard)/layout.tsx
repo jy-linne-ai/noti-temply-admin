@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Box,
@@ -18,6 +18,8 @@ import {
   useTheme,
   useMediaQuery,
   Chip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -27,6 +29,7 @@ import {
   Code as CodeIcon,
   Visibility as VisibilityIcon,
 } from '@mui/icons-material';
+import { useApi } from '@/lib/api';
 
 const drawerWidth = 240;
 
@@ -38,12 +41,55 @@ export default function DashboardLayout({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isCheckingVersion, setIsCheckingVersion] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'info' | 'warning' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
   const pathname = usePathname();
   const router = useRouter();
+  const api = useApi();
 
   const version = pathname.split('/')[2];
   const isVersionPage = pathname === '/versions';
 
+  useEffect(() => {
+    if (isVersionPage) {
+      return;
+    }
+    if (isCheckingVersion) {
+      return;
+    }
+    const loaded_version = localStorage.getItem('version');
+    if (loaded_version !== version) {
+      setIsCheckingVersion(true);
+      const checkVersion = async () => {
+        try {
+          const versions = await api.getVersions();
+          if (versions.length > 0 && versions.find((v) => v.version === version)) {
+            localStorage.setItem('version', version);
+            setIsCheckingVersion(false);
+            return;
+          }
+            setSnackbar({
+              open: true,
+              message: '유효하지 않은 버전입니다. 버전을 선택해주세요.',
+              severity: 'warning'
+            });
+            setTimeout(() => {
+              router.push('/versions');
+            }, 2000);
+        } catch (error) {
+          console.error('Error checking version:', error);
+          setIsCheckingVersion(false);
+        }
+      };
+      checkVersion();
+    }
+  }, [version, router, isVersionPage, api, isCheckingVersion]);
+
+  
   const menuItems = isVersionPage ? [
     { text: '버전 관리', icon: <CodeIcon />, path: '/versions' },
   ] : version ? [
@@ -94,7 +140,8 @@ export default function DashboardLayout({
   );
 
   return (
-        <Box sx={{ display: 'flex' }}>
+    <>
+      <Box sx={{ display: 'flex' }}>
           <AppBar
             position="fixed"
             sx={{
@@ -211,5 +258,21 @@ export default function DashboardLayout({
             {children}
           </Box>
         </Box>
+        
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={3000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert 
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </>
   );
 }

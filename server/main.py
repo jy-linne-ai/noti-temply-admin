@@ -4,12 +4,18 @@ import os
 
 from dotenv import load_dotenv
 
-from temply_app.apps import get_app
+from temply_app.apps import get_app as get_app_root
 
 env_file = os.getenv("env_file")
 
 if env_file:
     load_dotenv(f"{env_file}")
+
+
+def get_app():
+    """Get the app"""
+    return get_app_root()
+
 
 if __name__ == "__main__":
 

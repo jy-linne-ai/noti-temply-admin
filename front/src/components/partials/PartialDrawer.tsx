@@ -669,7 +669,7 @@ export function PartialDrawer({
                                 color="text.secondary"
                                 sx={{ ml: 'auto' }}
                               >
-                                {partial.root_name}
+                                {partial.name}
                               </Typography>
                             </Box>
                             {partial.description && (
@@ -769,7 +769,7 @@ export function PartialDrawer({
                       생성
                     </Typography>
                     <Typography variant="body2">
-                      {formatDate(currentPartial?.created_at)}
+                      {formatDate(currentPartial?.created_at || null)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {currentPartial?.created_by || '알 수 없음'}
@@ -780,7 +780,7 @@ export function PartialDrawer({
                       수정
                     </Typography>
                     <Typography variant="body2">
-                      {formatDate(currentPartial?.updated_at)}
+                      {formatDate(currentPartial?.updated_at || null)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {currentPartial?.updated_by || '알 수 없음'}

@@ -1,5 +1,7 @@
 """Temply 버전별 환경 관리"""
 
+from typing import List
+
 from temply_app.core.config import Config
 from temply_app.core.git_env import GitEnv
 from temply_app.core.temply.temply_env import TemplyEnv
@@ -32,3 +34,14 @@ class TemplyVersionEnv:
     def get_applied_version(self) -> str:
         """적용된 버전 반환"""
         return self.applied_version
+
+TEMPLY_VERSION_ENV_LIST: List[TemplyVersionEnv] = []
+
+def get_temply_version_env(config: Config, version_info: VersionInfo, git_env: GitEnv | None = None) -> TemplyVersionEnv:
+    """Temply 버전별 환경 반환"""
+    for temply_version_env in TEMPLY_VERSION_ENV_LIST:
+        if temply_version_env.version_info.version == version_info.version:
+            return temply_version_env
+    temply_version_env = TemplyVersionEnv(config, version_info, git_env)
+    TEMPLY_VERSION_ENV_LIST.append(temply_version_env)
+    return temply_version_env

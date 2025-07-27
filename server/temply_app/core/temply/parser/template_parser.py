@@ -20,7 +20,7 @@ from temply_app.core.temply.parser import meta_util
 from temply_app.core.temply.parser.meta_model import BaseMetaData, TemplateComponentMetaData
 from temply_app.core.temply.temply_env import TemplyEnv
 from temply_app.models.common_model import User
-
+from temply_app.core.cache.lru_cache import LRUCache
 
 class TemplateParser:
     """Parser for Jinja2 templates."""
@@ -479,3 +479,23 @@ class TemplateParser:
     ) -> str:
         """Render Component"""
         return self.env.render_component(template_name, component_name, data)
+
+
+_TEMPLATE_PARSER_CACHE: LRUCache = LRUCache()
+
+def get_template_parser(temply_env: TemplyEnv) -> TemplateParser:
+    """Get a template parser."""
+    template_parser = _TEMPLATE_PARSER_CACHE.get(str(temply_env))
+    if template_parser is not None:
+        return template_parser
+    template_parser = TemplateParser(temply_env)
+    _TEMPLATE_PARSER_CACHE.set(str(temply_env), template_parser)
+    return template_parser
+
+def clear_template_parser_cache() -> None:
+    """Clear all template parser cache."""
+    _TEMPLATE_PARSER_CACHE.clear()
+
+def clear_template_parser_cache_by_temply_env(temply_env: TemplyEnv) -> None:
+    """Clear template parser cache by temply env."""
+    _TEMPLATE_PARSER_CACHE.delete(str(temply_env))

@@ -1,5 +1,7 @@
 """Apps"""
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,6 +9,8 @@ from fastapi.responses import JSONResponse
 from temply_app.core.config import Config
 from temply_app.router import set_router
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO) 
 
 def create_app(config: Config) -> FastAPI:
     """Create App"""
@@ -28,10 +32,12 @@ def create_app(config: Config) -> FastAPI:
     # 전역 예외 핸들러
     @app.exception_handler(ValueError)
     async def value_error_handler(request: Request, exc: ValueError):
+        logger.error(f"ValueError: {str(exc)}")
         return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
+        logger.error(f"Exception: {str(exc)}")
         return JSONResponse(
             status_code=500,
             content={"detail": f"Internal server error: {str(exc)}"},

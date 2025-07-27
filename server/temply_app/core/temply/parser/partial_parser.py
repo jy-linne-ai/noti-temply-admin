@@ -19,6 +19,7 @@ from temply_app.core.temply.parser.meta_model import BaseMetaData, PartialMetaDa
 from temply_app.core.temply.temply_env import TemplyEnv
 from temply_app.models.common_model import User
 
+from temply_app.core.cache.lru_cache import LRUCache
 
 class PartialParser:
     """Parser for Jinja2 partials that builds a dependency tree."""
@@ -434,3 +435,26 @@ class PartialParser:
             del self.nodes[partial_name]
         finally:
             self._initialized = True
+
+_PARTIAL_PARSER_CACHE: LRUCache = LRUCache()
+
+def get_partial_parser(temply_env: TemplyEnv) -> PartialParser:
+    """Get a partial parser.
+
+    Args:
+        temply_env: Temply environment
+    """
+    partial_parser = _PARTIAL_PARSER_CACHE.get(str(temply_env))
+    if partial_parser is not None:
+        return partial_parser
+    partial_parser = PartialParser(temply_env)
+    _PARTIAL_PARSER_CACHE.set(str(temply_env), partial_parser)
+    return partial_parser
+
+def clear_partial_parser_cache() -> None:
+    """Clear all partial parser cache."""
+    _PARTIAL_PARSER_CACHE.clear()
+
+def clear_partial_parser_cache_by_temply_env(temply_env: TemplyEnv) -> None:
+    """Clear partial parser cache by temply env."""
+    _PARTIAL_PARSER_CACHE.delete(str(temply_env))

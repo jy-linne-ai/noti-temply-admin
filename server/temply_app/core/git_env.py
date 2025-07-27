@@ -3,6 +3,7 @@
 import logging
 import os
 import subprocess
+from shutil import rmtree
 from typing import List
 
 from temply_app.core.config import Config
@@ -26,6 +27,16 @@ class GitEnv:
             subprocess.run(command, shell=True, check=True, capture_output=True)
         except subprocess.CalledProcessError as e:
             raise ValueError(f"Failed to execute command: {e.stderr.decode()}") from e
+
+    def _get_local_branch_list(self) -> List[str]:
+        """로컬 파일에서 브랜치 목록 조회"""
+        result = []
+        for dir_name in os.listdir(self.efs_root_path):
+            branch_path = os.path.join(self.efs_root_path, dir_name)
+            if not os.path.isdir(branch_path) or dir_name.startswith("."):
+                continue
+            result.append(dir_name)
+        return result
 
     def create_version(self) -> None:
         """Git 저장소 복제"""
@@ -91,13 +102,24 @@ class GitEnv:
                 capture_output=True,
                 text=True,
             )
-            git_branch_list = result.stdout.strip().split("\n")
-            logger.debug("git_branch_list: %s", git_branch_list)
-            return [
-                VersionInfo(self.config, branch.strip().replace("origin/", "").split(" -> ")[-1])
-                for branch in git_branch_list
-                if branch.strip() and not branch.strip().startswith("origin/HEAD")  # 빈 문자열 제외
+
+            git_branch_list = [
+                branch.strip().replace("origin/", "").split(" -> ")[-1]
+                for branch in result.stdout.strip().split("\n")
+                if branch.strip() and not branch.strip().startswith("origin/HEAD")
             ]
+
+            # local에만 있는 브렌치가 있다면, 삭제해야 함.
+            local_branch_list = self._get_local_branch_list()
+
+            for local_branch in local_branch_list:
+                if local_branch == self.config.noti_temply_main_version_name:
+                    continue
+                if local_branch not in git_branch_list:
+                    rmtree(os.path.join(self.efs_root_path, local_branch))
+
+            return [VersionInfo(self.config, branch) for branch in git_branch_list]
+
         except subprocess.CalledProcessError as e:
             raise ValueError(f"Failed to get versions: {e.stderr}") from e
 
